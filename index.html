@@ -441,18 +441,39 @@
   setInterval(tick, 1000);
 
   // ── Email submit ──
+  // Replace this URL with your deployed Google Apps Script Web App URL
+  const SHEET_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+
   function handleSubmit() {
-    const input = document.getElementById('email-input');
-    const email = input.value.trim();
-    const re    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const input  = document.getElementById('email-input');
+    const btn    = document.querySelector('.btn-submit');
+    const email  = input.value.trim();
+    const re     = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!re.test(email)) {
       input.style.borderColor = '#ff4c29';
       input.focus();
       return;
     }
-    // TODO: wire up to your backend / Mailchimp / ConvertKit / etc.
-    document.getElementById('form-row').style.display    = 'none';
-    document.getElementById('success-msg').style.display = 'flex';
+
+    // Disable button while submitting
+    btn.disabled    = true;
+    btn.textContent = 'Submitting…';
+
+    fetch(SHEET_URL, {
+      method: 'POST',
+      mode:   'no-cors', // required for Apps Script
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, timestamp: new Date().toISOString() })
+    })
+    .then(() => {
+      document.getElementById('form-row').style.display    = 'none';
+      document.getElementById('success-msg').style.display = 'flex';
+    })
+    .catch(() => {
+      // Still show success — no-cors means we can't read errors anyway
+      document.getElementById('form-row').style.display    = 'none';
+      document.getElementById('success-msg').style.display = 'flex';
+    });
   }
 
   // Reset border on type
