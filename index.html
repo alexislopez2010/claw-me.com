@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>claw-me.com — OpenClaw as a Service</title>
+  <meta name="description" content="Your personalized OpenClaw AI assistant, running in the cloud 24/7. No setup. No servers. Just claws." />
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #13161e;
+      --surface2:  #1a1e2a;
+      --border:    #252a38;
+      --accent:    #ff4c29;
+      --accent2:   #ff7a52;
+      --text:      #e8eaf0;
+      --muted:     #8891a8;
+      --card-bg:   #161a25;
+      --radius:    12px;
+      --font:      'Inter', system-ui, -apple-system, sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; }
+
+    /* ── Typography ── */
+    h1, h2, h3, h4 { line-height: 1.2; letter-spacing: -0.02em; }
+    h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); font-weight: 800; }
+    h2 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 700; }
+    h3 { font-size: 1.2rem; font-weight: 600; }
+    p  { color: var(--muted); }
+
+    /* ── Layout helpers ── */
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+    .section    { padding: 96px 0; }
+    .section--tight { padding: 64px 0; }
+
+    /* ── Navbar ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13, 15, 20, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 60px; max-width: 1120px; margin: 0 auto;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em;
+    }
+    .nav-logo .claw-icon { font-size: 1.5rem; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a {
+      font-size: 0.9rem; font-weight: 500; color: var(--muted);
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border-radius: 8px; font-size: 0.9rem;
+      font-weight: 600; cursor: pointer; transition: all 0.2s; border: none;
+    }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+    }
+    .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(255, 76, 41, 0.35); }
+    .btn-outline {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-lg { padding: 14px 32px; font-size: 1rem; border-radius: 10px; }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 120px 0 80px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255, 76, 41, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255, 76, 41, 0.1); border: 1px solid rgba(255, 76, 41, 0.3);
+      padding: 6px 16px; border-radius: 999px; font-size: 0.82rem;
+      font-weight: 600; color: var(--accent2); margin-bottom: 28px;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .hero h1 {
+      max-width: 820px; margin: 0 auto 24px;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero .subtitle {
+      font-size: clamp(1rem, 2.2vw, 1.22rem); max-width: 600px;
+      margin: 0 auto 44px; color: var(--muted); line-height: 1.7;
+    }
+    .hero-ctas { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+
+    /* ── Giant claw SVG ── */
+    .hero-mascot {
+      margin: 64px auto 0;
+      width: 260px; height: 260px;
+      position: relative;
+    }
+    .mascot-glow {
+      position: absolute; inset: -30px;
+      background: radial-gradient(circle, rgba(255,76,41,0.18) 0%, transparent 70%);
+      border-radius: 50%;
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50%       { opacity: 1;   transform: scale(1.06); }
+    }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .stats-inner {
+      display: flex; flex-wrap: wrap;
+      max-width: 1120px; margin: 0 auto; padding: 0 24px;
+    }
+    .stat-item {
+      flex: 1 1 200px; padding: 32px 24px; text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-num {
+      font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em;
+      color: var(--text);
+    }
+    .stat-num span { color: var(--accent); }
+    .stat-label { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Section intro ── */
+    .section-intro { text-align: center; margin-bottom: 60px; }
+    .section-intro .eyebrow {
+      display: inline-block; font-size: 0.78rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 12px;
+    }
+    .section-intro h2 { margin-bottom: 16px; }
+    .section-intro p { max-width: 540px; margin: 0 auto; font-size: 1.05rem; }
+
+    /* ── Features grid ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .feature-icon {
+      width: 48px; height: 48px;
+      background: rgba(255, 76, 41, 0.12);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; margin-bottom: 20px;
+    }
+    .feature-card h3 { margin-bottom: 10px; }
+    .feature-card p { font-size: 0.93rem; }
+
+    /* ── How it works ── */
+    .how-section { background: var(--surface); }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2px;
+      background: var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .step {
+      background: var(--surface);
+      padding: 40px 32px;
+      position: relative;
+    }
+    .step-num {
+      font-size: 3rem; font-weight: 900; color: rgba(255,76,41,0.15);
+      letter-spacing: -0.05em; line-height: 1;
+      margin-bottom: 16px;
+    }
+    .step h3 { margin-bottom: 10px; }
+    .step p { font-size: 0.9rem; }
+
+    /* ── Plans ── */
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      align-items: start;
+    }
+    .plan-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px;
+      position: relative;
+    }
+    .plan-card.popular {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, rgba(255,76,41,0.06) 0%, var(--card-bg) 60%);
+    }
+    .popular-badge {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      background: var(--accent); color: #fff;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 4px 14px; border-radius: 999px;
+    }
+    .plan-name { font-size: 1rem; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+    .plan-price {
+      font-size: 3rem; font-weight: 900; letter-spacing: -0.04em;
+      color: var(--text); line-height: 1;
+    }
+    .plan-price sup { font-size: 1.4rem; vertical-align: super; font-weight: 700; }
+    .plan-price sub { font-size: 1rem; font-weight: 400; color: var(--muted); }
+    .plan-desc { color: var(--muted); font-size: 0.9rem; margin: 12px 0 28px; }
+    .plan-divider { height: 1px; background: var(--border); margin-bottom: 24px; }
+    .plan-features { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+    .plan-features li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 0.88rem; color: var(--text);
+    }
+    .plan-features li .check { color: var(--accent); font-size: 1rem; margin-top: 1px; flex-shrink: 0; }
+
+    /* ── Integrations ── */
+    .integrations-marquee {
+      overflow: hidden; position: relative;
+      padding: 20px 0;
+    }
+    .integrations-marquee::before,
+    .integrations-marquee::after {
+      content: ''; position: absolute; top: 0; bottom: 0; width: 120px; z-index: 2;
+      pointer-events: none;
+    }
+    .integrations-marquee::before { left: 0;  background: linear-gradient(to right, var(--bg), transparent); }
+    .integrations-marquee::after  { right: 0; background: linear-gradient(to left, var(--bg), transparent); }
+    .marquee-track {
+      display: flex; gap: 16px;
+      animation: marquee 28s linear infinite;
+      width: max-content;
+    }
+    @keyframes marquee {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .integration-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 10px 18px; border-radius: 999px;
+      font-size: 0.85rem; font-weight: 500; white-space: nowrap;
+      color: var(--muted);
+    }
+    .integration-pill .i-icon { font-size: 1.1rem; }
+
+    /* ── Testimonials ── */
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .testimonial-card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px;
+    }
+    .testimonial-card .quote {
+      font-size: 0.95rem; color: var(--text); margin-bottom: 20px; line-height: 1.7;
+    }
+    .testimonial-card .quote::before { content: '"'; color: var(--accent); font-size: 1.5rem; }
+    .testimonial-card .quote::after  { content: '"'; color: var(--accent); font-size: 1.5rem; }
+    .testimonial-author { display: flex; align-items: center; gap: 12px; }
+    .author-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.9rem; color: #fff; flex-shrink: 0;
+    }
+    .author-name { font-size: 0.88rem; font-weight: 600; }
+    .author-role { font-size: 0.78rem; color: var(--muted); }
+
+    /* ── CTA Banner ── */
+    .cta-banner {
+      background: linear-gradient(135deg, rgba(255,76,41,0.15) 0%, transparent 60%);
+      border: 1px solid rgba(255,76,41,0.25);
+      border-radius: 20px; padding: 72px 40px;
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .cta-banner::before {
+      content: '🦞';
+      position: absolute; font-size: 8rem; opacity: 0.06;
+      right: 5%; bottom: -10%; transform: rotate(-20deg);
+      pointer-events: none;
+    }
+    .cta-banner h2 { margin-bottom: 16px; }
+    .cta-banner p { margin-bottom: 36px; font-size: 1.05rem; }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 48px 24px 32px;
+    }
+    .footer-inner {
+      max-width: 1120px; margin: 0 auto;
+      display: flex; flex-wrap: wrap; gap: 48px; justify-content: space-between;
+    }
+    .footer-brand .nav-logo { margin-bottom: 12px; }
+    .footer-brand p { font-size: 0.88rem; max-width: 240px; }
+    .footer-col h4 { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-col ul li a { font-size: 0.88rem; color: var(--muted); transition: color 0.2s; }
+    .footer-col ul li a:hover { color: var(--text); }
+    .footer-bottom {
+      max-width: 1120px; margin: 40px auto 0;
+      padding-top: 24px; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+      font-size: 0.82rem; color: var(--muted);
+    }
+    .footer-bottom a { color: var(--muted); }
+    .footer-bottom a:hover { color: var(--accent); }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .stat-item { border-right: none; border-bottom: 1px solid var(--border); }
+      .stat-item:last-child { border-bottom: none; }
+      .hero { padding: 80px 0 60px; }
+      .cta-banner { padding: 48px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── NAVBAR ─── -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">
+      <span class="claw-icon">🦞</span>
+      claw-me<span style="color:var(--accent);">.com</span>
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it Works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#integrations">Integrations</a>
+      <a href="#" class="btn btn-outline">Log in</a>
+      <a href="#pricing" class="btn btn-primary">Get Started</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ─── HERO ─── -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">☁️ OpenClaw as a Service — Now in Cloud Preview</div>
+    <h1>
+      Your Personal AI.<br/>
+      <span>Claws in the Cloud.</span>
+    </h1>
+    <p class="subtitle">
+      Everything you love about OpenClaw — persistent memory, autonomous agents,
+      50+ integrations — now running 24/7 in a dedicated cloud instance,
+      personalized entirely to you. No setup. No servers. Just results.
+    </p>
+    <div class="hero-ctas">
+      <a href="#pricing" class="btn btn-primary btn-lg">🦞 Deploy My Claw</a>
+      <a href="#how" class="btn btn-outline btn-lg">See How It Works</a>
+    </div>
+    <div class="hero-mascot">
+      <div class="mascot-glow"></div>
+      <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg" width="260" height="260" style="position:relative;z-index:1;">
+        <!-- Body -->
+        <ellipse cx="130" cy="148" rx="52" ry="58" fill="#1e0d09" stroke="#ff4c29" stroke-width="2.5"/>
+        <!-- Shell segments -->
+        <ellipse cx="130" cy="130" rx="46" ry="38" fill="#2a1008" stroke="#ff4c29" stroke-width="1.5" opacity="0.8"/>
+        <ellipse cx="130" cy="155" rx="48" ry="28" fill="#240e07" stroke="#ff4c29" stroke-width="1.5" opacity="0.7"/>
+        <ellipse cx="130" cy="178" rx="42" ry="22" fill="#1e0d09" stroke="#ff4c29" stroke-width="1.5" opacity="0.6"/>
+        <!-- Head -->
+        <ellipse cx="130" cy="100" rx="36" ry="30" fill="#2a1008" stroke="#ff4c29" stroke-width="2.5"/>
+        <!-- Eyes -->
+        <circle cx="115" cy="92" r="9" fill="#ff4c29" opacity="0.9"/>
+        <circle cx="145" cy="92" r="9" fill="#ff4c29" opacity="0.9"/>
+        <circle cx="117" cy="90" r="4" fill="#fff"/>
+        <circle cx="147" cy="90" r="4" fill="#fff"/>
+        <circle cx="118" cy="89" r="2" fill="#111"/>
+        <circle cx="148" cy="89" r="2" fill="#111"/>
+        <!-- Antennae -->
+        <line x1="115" y1="75" x2="90" y2="45" stroke="#ff4c29" stroke-width="2" stroke-linecap="round"/>
+        <line x1="145" y1="75" x2="170" y2="45" stroke="#ff4c29" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="90" cy="45" r="3.5" fill="#ff7a52"/>
+        <circle cx="170" cy="45" r="3.5" fill="#ff7a52"/>
+        <!-- LEFT BIG CLAW -->
+        <g transform="translate(-10, 10)">
+          <!-- arm -->
+          <path d="M 98 148 Q 72 148 62 138" stroke="#ff4c29" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <!-- claw body -->
+          <ellipse cx="55" cy="132" rx="20" ry="12" fill="#2a1008" stroke="#ff4c29" stroke-width="2" transform="rotate(-30 55 132)"/>
+          <!-- upper pincer -->
+          <path d="M 42 122 Q 28 108 34 100 Q 40 93 50 100" stroke="#ff4c29" stroke-width="2.5" fill="#1e0d09" stroke-linejoin="round"/>
+          <!-- lower pincer -->
+          <path d="M 44 126 Q 26 130 26 140 Q 26 150 38 148" stroke="#ff4c29" stroke-width="2.5" fill="#1e0d09" stroke-linejoin="round"/>
+        </g>
+        <!-- RIGHT BIG CLAW -->
+        <g transform="translate(10, 10)">
+          <path d="M 162 148 Q 188 148 198 138" stroke="#ff4c29" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <ellipse cx="205" cy="132" rx="20" ry="12" fill="#2a1008" stroke="#ff4c29" stroke-width="2" transform="rotate(30 205 132)"/>
+          <path d="M 218 122 Q 232 108 226 100 Q 220 93 210 100" stroke="#ff4c29" stroke-width="2.5" fill="#1e0d09" stroke-linejoin="round"/>
+          <path d="M 216 126 Q 234 130 234 140 Q 234 150 222 148" stroke="#ff4c29" stroke-width="2.5" fill="#1e0d09" stroke-linejoin="round"/>
+        </g>
+        <!-- Walking legs left -->
+        <line x1="95" y1="165" x2="68" y2="185" stroke="#ff4c29" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="90" y1="178" x2="66" y2="200" stroke="#ff4c29" stroke-width="2" stroke-linecap="round"/>
+        <line x1="92" y1="192" x2="70" y2="214" stroke="#ff4c29" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- Walking legs right -->
+        <line x1="165" y1="165" x2="192" y2="185" stroke="#ff4c29" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="170" y1="178" x2="194" y2="200" stroke="#ff4c29" stroke-width="2" stroke-linecap="round"/>
+        <line x1="168" y1="192" x2="190" y2="214" stroke="#ff4c29" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- Tail -->
+        <ellipse cx="130" cy="210" rx="22" ry="10" fill="#2a1008" stroke="#ff4c29" stroke-width="1.5"/>
+        <ellipse cx="130" cy="222" rx="16" ry="8" fill="#1e0d09" stroke="#ff4c29" stroke-width="1.5"/>
+        <!-- Cloud badge on body -->
+        <text x="130" y="152" text-anchor="middle" font-family="system-ui" font-size="18" fill="#ff4c29">☁</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ─── STATS ─── -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat-item">
+      <div class="stat-num">99.<span>9</span>%</div>
+      <div class="stat-label">Uptime SLA</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num"><span>50</span>+</div>
+      <div class="stat-label">Native Integrations</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num"><span>&lt;2</span>s</div>
+      <div class="stat-label">Average Response Time</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num"><span>∞</span></div>
+      <div class="stat-label">Memory — Never Forgets You</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── FEATURES ─── -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-intro">
+      <span class="eyebrow">What You Get</span>
+      <h2>A dedicated claw, just for you</h2>
+      <p>Every claw-me.com client gets a private, fully isolated OpenClaw instance — trained on your workflow, plugged into your tools, running around the clock.</p>
+    </div>
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <div class="feature-icon">☁️</div>
+        <h3>Dedicated Cloud Instance</h3>
+        <p>Your OpenClaw runs in its own isolated container — separate compute, separate storage, separate secrets. No noisy neighbors, no shared state. It's yours.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🧠</div>
+        <h3>Persistent, Personal Memory</h3>
+        <p>Your claw learns your preferences, your writing style, your team structure, and your workflows over time. Every interaction makes it smarter — and it never forgets between sessions.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Always-On Autonomous Agents</h3>
+        <p>Schedule tasks, trigger automations, and let your claw handle background work 24/7 — monitoring inboxes, summarizing reports, managing calendars — even while you sleep.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🔌</div>
+        <h3>Plug In Your Stack</h3>
+        <p>Connect Gmail, Slack, Notion, GitHub, Salesforce, Linear, and 50+ other tools from day one. Your claw operates within your existing ecosystem, not around it.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Enterprise-Grade Security</h3>
+        <p>SOC 2 Type II compliant infrastructure, end-to-end encryption, RBAC controls, and full audit logs. Your data never trains shared models. Your secrets stay secret.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🧩</div>
+        <h3>Custom Skills & Plugins</h3>
+        <p>Install community skills from ClawHub, or commission custom plugins tailored to your business logic. Your claw can do anything OpenClaw can — and more.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Usage Dashboard</h3>
+        <p>A clean web dashboard gives you full visibility into your claw's activity — tasks completed, integrations used, token spend, and live logs — all in one place.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🚀</div>
+        <h3>Zero Setup, Instant Deploy</h3>
+        <p>No npm installs, no servers, no configs. Sign up, connect your tools via OAuth, and your personalized OpenClaw is live in under two minutes.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🔄</div>
+        <h3>Automatic Updates</h3>
+        <p>Every OpenClaw core update, model improvement, and security patch is deployed to your instance automatically. You always run the latest — without lifting a finger.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─── HOW IT WORKS ─── -->
+<section class="section how-section" id="how">
+  <div class="container">
+    <div class="section-intro">
+      <span class="eyebrow">How It Works</span>
+      <h2>Up and running in minutes</h2>
+      <p>From sign-up to autonomous AI agent in four simple steps.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3>Create Your Account</h3>
+        <p>Sign up with your email or Google account. Choose your plan and we'll provision your dedicated cloud environment instantly.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3>Connect Your Tools</h3>
+        <p>Authorize your apps via OAuth — Gmail, Slack, Notion, GitHub, Salesforce, and more. Your claw gets the keys it needs; you stay in control.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3>Personalize Your Claw</h3>
+        <p>Tell your claw about your role, routines, communication style, and priorities. The more context you give, the smarter it operates from day one.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <h3>Let It Work</h3>
+        <p>Chat with your claw over WhatsApp, Telegram, Slack, or the web app. Set it loose on tasks and watch it handle the busywork so you don't have to.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── INTEGRATIONS ─── -->
+<section class="section" id="integrations">
+  <div class="container">
+    <div class="section-intro">
+      <span class="eyebrow">Integrations</span>
+      <h2>Works with your whole stack</h2>
+      <p>Your claw plugs directly into the tools you already use — no custom code required.</p>
+    </div>
+  </div>
+  <div class="integrations-marquee">
+    <div class="marquee-track">
+      <!-- First set -->
+      <div class="integration-pill"><span class="i-icon">📧</span> Gmail</div>
+      <div class="integration-pill"><span class="i-icon">💬</span> Slack</div>
+      <div class="integration-pill"><span class="i-icon">📅</span> Google Calendar</div>
+      <div class="integration-pill"><span class="i-icon">🐙</span> GitHub</div>
+      <div class="integration-pill"><span class="i-icon">📝</span> Notion</div>
+      <div class="integration-pill"><span class="i-icon">📊</span> Salesforce</div>
+      <div class="integration-pill"><span class="i-icon">🗂️</span> Linear</div>
+      <div class="integration-pill"><span class="i-icon">✅</span> Asana</div>
+      <div class="integration-pill"><span class="i-icon">📦</span> Jira</div>
+      <div class="integration-pill"><span class="i-icon">🎵</span> Spotify</div>
+      <div class="integration-pill"><span class="i-icon">🐦</span> Twitter / X</div>
+      <div class="integration-pill"><span class="i-icon">📱</span> WhatsApp</div>
+      <div class="integration-pill"><span class="i-icon">✈️</span> Telegram</div>
+      <div class="integration-pill"><span class="i-icon">🎮</span> Discord</div>
+      <div class="integration-pill"><span class="i-icon">🔵</span> Microsoft Teams</div>
+      <div class="integration-pill"><span class="i-icon">☁️</span> Google Drive</div>
+      <div class="integration-pill"><span class="i-icon">📄</span> Dropbox</div>
+      <div class="integration-pill"><span class="i-icon">🏦</span> Stripe</div>
+      <div class="integration-pill"><span class="i-icon">🔗</span> Zapier</div>
+      <div class="integration-pill"><span class="i-icon">🤖</span> HubSpot</div>
+      <!-- Duplicate for seamless loop -->
+      <div class="integration-pill"><span class="i-icon">📧</span> Gmail</div>
+      <div class="integration-pill"><span class="i-icon">💬</span> Slack</div>
+      <div class="integration-pill"><span class="i-icon">📅</span> Google Calendar</div>
+      <div class="integration-pill"><span class="i-icon">🐙</span> GitHub</div>
+      <div class="integration-pill"><span class="i-icon">📝</span> Notion</div>
+      <div class="integration-pill"><span class="i-icon">📊</span> Salesforce</div>
+      <div class="integration-pill"><span class="i-icon">🗂️</span> Linear</div>
+      <div class="integration-pill"><span class="i-icon">✅</span> Asana</div>
+      <div class="integration-pill"><span class="i-icon">📦</span> Jira</div>
+      <div class="integration-pill"><span class="i-icon">🎵</span> Spotify</div>
+      <div class="integration-pill"><span class="i-icon">🐦</span> Twitter / X</div>
+      <div class="integration-pill"><span class="i-icon">📱</span> WhatsApp</div>
+      <div class="integration-pill"><span class="i-icon">✈️</span> Telegram</div>
+      <div class="integration-pill"><span class="i-icon">🎮</span> Discord</div>
+      <div class="integration-pill"><span class="i-icon">🔵</span> Microsoft Teams</div>
+      <div class="integration-pill"><span class="i-icon">☁️</span> Google Drive</div>
+      <div class="integration-pill"><span class="i-icon">📄</span> Dropbox</div>
+      <div class="integration-pill"><span class="i-icon">🏦</span> Stripe</div>
+      <div class="integration-pill"><span class="i-icon">🔗</span> Zapier</div>
+      <div class="integration-pill"><span class="i-icon">🤖</span> HubSpot</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── TESTIMONIALS ─── -->
+<section class="section" style="padding-top: 0;">
+  <div class="container">
+    <div class="section-intro">
+      <span class="eyebrow">Early Access</span>
+      <h2>Claws out, rave reviews in</h2>
+      <p>What our beta users are saying about their personal cloud claw.</p>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <p class="quote">I gave my claw access to my inbox and calendar. By end of day one it had cleared 200 emails, rescheduled three meetings, and drafted my weekly update. I just approved everything. Wild.</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">JM</div>
+          <div>
+            <div class="author-name">Jamie M.</div>
+            <div class="author-role">Founder, SaaS Startup</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <p class="quote">The memory is what gets me. Three months in, my claw knows I hate passive voice, always cc my manager on client emails, and that Tuesday mornings are sacred. I never had to tell it twice.</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">RP</div>
+          <div>
+            <div class="author-name">Ravi P.</div>
+            <div class="author-role">Product Manager</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <p class="quote">I tried running OpenClaw locally and it was great — but claw-me.com means it's always on. My claw monitors my GitHub PRs, pings me on Telegram when something needs review, and it never sleeps.</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">SK</div>
+          <div>
+            <div class="author-name">Sofia K.</div>
+            <div class="author-role">Senior Engineer</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── PRICING ─── -->
+<section class="section" style="background: var(--surface);" id="pricing">
+  <div class="container">
+    <div class="section-intro">
+      <span class="eyebrow">Pricing</span>
+      <h2>Simple, honest pricing</h2>
+      <p>One dedicated claw per plan. No shared infrastructure. Cancel any time.</p>
+    </div>
+    <div class="plans-grid">
+
+      <!-- Starter -->
+      <div class="plan-card">
+        <div class="plan-name">Starter Claw</div>
+        <div class="plan-price"><sup>$</sup>29<sub>/mo</sub></div>
+        <p class="plan-desc">Perfect for individuals who want a personal AI assistant that runs 24/7 without the hassle.</p>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><span class="check">🦞</span> 1 dedicated cloud instance</li>
+          <li><span class="check">🦞</span> Up to 10 integrations</li>
+          <li><span class="check">🦞</span> Persistent memory (6-month window)</li>
+          <li><span class="check">🦞</span> 500 autonomous task runs/mo</li>
+          <li><span class="check">🦞</span> Chat via web app</li>
+          <li><span class="check">🦞</span> Community support</li>
+        </ul>
+        <a href="#" class="btn btn-outline" style="width:100%; justify-content:center;">Get Starter</a>
+      </div>
+
+      <!-- Pro (Popular) -->
+      <div class="plan-card popular">
+        <div class="popular-badge">Most Popular</div>
+        <div class="plan-name">Pro Claw</div>
+        <div class="plan-price"><sup>$</sup>99<sub>/mo</sub></div>
+        <p class="plan-desc">For power users who want the full OpenClaw experience with maximum connectivity and power.</p>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><span class="check">🦞</span> 1 dedicated cloud instance (4× compute)</li>
+          <li><span class="check">🦞</span> Unlimited integrations</li>
+          <li><span class="check">🦞</span> Persistent memory (unlimited)</li>
+          <li><span class="check">🦞</span> 5,000 autonomous task runs/mo</li>
+          <li><span class="check">🦞</span> Chat via web, WhatsApp, Telegram, Slack</li>
+          <li><span class="check">🦞</span> Custom skill installs from ClawHub</li>
+          <li><span class="check">🦞</span> Priority support + onboarding call</li>
+        </ul>
+        <a href="#" class="btn btn-primary" style="width:100%; justify-content:center;">Get Pro</a>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="plan-card">
+        <div class="plan-name">Enterprise Claw</div>
+        <div class="plan-price" style="font-size:2rem; padding-top:0.4rem;">Custom</div>
+        <p class="plan-desc">Dedicated infrastructure, custom SLAs, and white-glove onboarding for teams and organizations.</p>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li><span class="check">🦞</span> Multiple dedicated instances</li>
+          <li><span class="check">🦞</span> Private cloud / VPC deployment</li>
+          <li><span class="check">🦞</span> SSO, RBAC, audit logs</li>
+          <li><span class="check">🦞</span> Unlimited task runs</li>
+          <li><span class="check">🦞</span> Custom skill development</li>
+          <li><span class="check">🦞</span> SOC 2 compliance docs</li>
+          <li><span class="check">🦞</span> Dedicated success manager</li>
+        </ul>
+        <a href="mailto:enterprise@claw-me.com" class="btn btn-outline" style="width:100%; justify-content:center;">Contact Sales</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─── CTA BANNER ─── -->
+<section class="section--tight">
+  <div class="container">
+    <div class="cta-banner">
+      <div class="hero-badge" style="margin-bottom:20px;">🦞 Early Access — Limited Spots</div>
+      <h2>Ready to deploy your claw?</h2>
+      <p>Join hundreds of early adopters putting OpenClaw in the cloud. Your personalized AI assistant is two minutes away.</p>
+      <a href="#pricing" class="btn btn-primary btn-lg">🦞 Deploy My Claw Free for 14 Days</a>
+    </div>
+  </div>
+</section>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="nav-logo">
+        <span class="claw-icon">🦞</span>
+        claw-me<span style="color:var(--accent);">.com</span>
+      </div>
+      <p>OpenClaw as a Service. Your personal AI assistant, running 24/7 in the cloud.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#how">How It Works</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#integrations">Integrations</a></li>
+        <li><a href="#">Changelog</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Resources</h4>
+      <ul>
+        <li><a href="#">Documentation</a></li>
+        <li><a href="#">ClawHub (Skills)</a></li>
+        <li><a href="#">API Reference</a></li>
+        <li><a href="#">Status Page</a></li>
+        <li><a href="#">OpenClaw.ai ↗</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <ul>
+        <li><a href="#">About</a></li>
+        <li><a href="#">Blog</a></li>
+        <li><a href="#">Discord Community</a></li>
+        <li><a href="mailto:enterprise@claw-me.com">Contact Sales</a></li>
+        <li><a href="#">Privacy Policy</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 claw-me.com. All rights reserved.</span>
+    <span>Built on <a href="https://openclaw.ai" target="_blank">OpenClaw</a> · Powered by ☁️ &amp; 🦞</span>
+  </div>
+</footer>
+
+</body>
+</html>

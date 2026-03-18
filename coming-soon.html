@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>claw-me.com — Coming Soon</title>
+  <meta name="description" content="OpenClaw as a Service is landing soon. Your personal AI in the cloud — always on, always learning, always clawing." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0d0f14;
+      --surface:  #13161e;
+      --border:   #252a38;
+      --accent:   #ff4c29;
+      --accent2:  #ff7a52;
+      --text:     #e8eaf0;
+      --muted:    #8891a8;
+    }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Starfield background ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        radial-gradient(1px 1px at 15% 12%, rgba(255,255,255,0.18) 0%, transparent 100%),
+        radial-gradient(1px 1px at 38% 7%,  rgba(255,255,255,0.12) 0%, transparent 100%),
+        radial-gradient(1px 1px at 60% 22%, rgba(255,255,255,0.15) 0%, transparent 100%),
+        radial-gradient(1px 1px at 82% 5%,  rgba(255,255,255,0.10) 0%, transparent 100%),
+        radial-gradient(1px 1px at 5%  40%, rgba(255,255,255,0.08) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 35%, rgba(255,255,255,0.14) 0%, transparent 100%),
+        radial-gradient(1px 1px at 72% 60%, rgba(255,255,255,0.09) 0%, transparent 100%),
+        radial-gradient(1px 1px at 25% 75%, rgba(255,255,255,0.12) 0%, transparent 100%),
+        radial-gradient(1px 1px at 50% 88%, rgba(255,255,255,0.07) 0%, transparent 100%),
+        radial-gradient(1px 1px at 10% 90%, rgba(255,255,255,0.11) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* ── Radial glow ── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 0%,   rgba(255,76,41,0.13) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 30% at 50% 100%, rgba(255,76,41,0.07) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* ── Page shell ── */
+    .page {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px 24px;
+      text-align: center;
+    }
+
+    /* ── Nav strip ── */
+    .top-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 56px;
+      background: rgba(13,15,20,0.7); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em;
+    }
+    .logo-accent { color: var(--accent); }
+    .top-link {
+      font-size: 0.82rem; color: var(--muted); font-weight: 500;
+      transition: color 0.2s; text-decoration: none;
+    }
+    .top-link:hover { color: var(--text); }
+
+    /* ── Badge ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(255,76,41,0.1); border: 1px solid rgba(255,76,41,0.3);
+      padding: 5px 15px; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent2);
+      margin-bottom: 32px;
+    }
+    .badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      animation: blink 1.4s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.2; }
+    }
+
+    /* ── Mascot ── */
+    .mascot-wrap {
+      position: relative;
+      width: 180px; height: 180px;
+      margin: 0 auto 36px;
+    }
+    .mascot-ring {
+      position: absolute; inset: -18px;
+      border: 1.5px dashed rgba(255,76,41,0.25);
+      border-radius: 50%;
+      animation: spin 22s linear infinite;
+    }
+    .mascot-ring::before {
+      content: '';
+      position: absolute; top: -5px; left: calc(50% - 5px);
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent);
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .mascot-glow {
+      position: absolute; inset: -30px;
+      background: radial-gradient(circle, rgba(255,76,41,0.2) 0%, transparent 70%);
+      border-radius: 50%;
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; transform: scale(1);    }
+      50%       { opacity: 1;   transform: scale(1.08); }
+    }
+
+    /* ── Headline ── */
+    h1 {
+      font-size: clamp(2.4rem, 7vw, 5rem);
+      font-weight: 900; letter-spacing: -0.04em;
+      line-height: 1.05; margin-bottom: 20px;
+    }
+    h1 .line2 { color: var(--accent); display: block; }
+    .subtitle {
+      font-size: clamp(1rem, 2.2vw, 1.18rem);
+      color: var(--muted); max-width: 520px;
+      margin: 0 auto 48px; line-height: 1.7;
+    }
+
+    /* ── Countdown ── */
+    .countdown {
+      display: flex; align-items: flex-start; justify-content: center;
+      gap: 8px; margin-bottom: 56px; flex-wrap: wrap;
+    }
+    .count-block {
+      display: flex; flex-direction: column; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px 28px;
+      min-width: 90px;
+    }
+    .count-num {
+      font-size: 2.8rem; font-weight: 900; letter-spacing: -0.05em;
+      color: var(--text); line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .count-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--muted); margin-top: 6px;
+    }
+    .count-sep {
+      font-size: 2.4rem; font-weight: 900; color: var(--accent);
+      margin-top: 14px; opacity: 0.5;
+    }
+
+    /* ── Email form ── */
+    .form-wrap {
+      width: 100%; max-width: 480px; margin: 0 auto 48px;
+    }
+    .form-label {
+      display: block; font-size: 0.82rem; font-weight: 600;
+      color: var(--muted); margin-bottom: 10px; letter-spacing: 0.03em;
+    }
+    .form-row {
+      display: flex; gap: 8px;
+    }
+    .form-input {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 13px 16px; font-size: 0.95rem;
+      color: var(--text); outline: none; transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .form-input::placeholder { color: var(--muted); }
+    .form-input:focus { border-color: var(--accent); }
+    .btn-submit {
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 10px; padding: 13px 22px;
+      font-size: 0.9rem; font-weight: 700; cursor: pointer;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      white-space: nowrap; font-family: inherit;
+    }
+    .btn-submit:hover {
+      background: var(--accent2); transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(255,76,41,0.35);
+    }
+    .form-note {
+      font-size: 0.75rem; color: var(--muted); margin-top: 10px;
+    }
+    /* Success state */
+    .success-msg {
+      display: none; align-items: center; justify-content: center; gap: 8px;
+      background: rgba(255,76,41,0.1); border: 1px solid rgba(255,76,41,0.3);
+      border-radius: 10px; padding: 14px 20px;
+      font-size: 0.92rem; font-weight: 600; color: var(--accent2);
+    }
+
+    /* ── Feature pills ── */
+    .pills {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+      max-width: 640px; margin: 0 auto 56px;
+    }
+    .pill {
+      display: flex; align-items: center; gap: 7px;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 8px 16px; border-radius: 999px;
+      font-size: 0.82rem; font-weight: 500; color: var(--muted);
+    }
+    .pill .icon { font-size: 1rem; }
+
+    /* ── Social / share ── */
+    .social-row {
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+    }
+    .social-label { font-size: 0.8rem; color: var(--muted); }
+    .social-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 16px;
+      font-size: 0.82rem; font-weight: 600; color: var(--muted);
+      text-decoration: none; transition: border-color 0.2s, color 0.2s;
+      cursor: pointer;
+    }
+    .social-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Footer ── */
+    .page-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      text-align: center; padding: 14px;
+      font-size: 0.78rem; color: var(--muted);
+      background: rgba(13,15,20,0.6); backdrop-filter: blur(8px);
+      border-top: 1px solid var(--border);
+    }
+    .page-footer a { color: var(--muted); text-decoration: none; }
+    .page-footer a:hover { color: var(--accent); }
+
+    /* ── Responsive ── */
+    @media (max-width: 500px) {
+      .form-row { flex-direction: column; }
+      .btn-submit { width: 100%; }
+      .count-block { padding: 16px 18px; min-width: 72px; }
+      .count-num { font-size: 2.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <div class="logo">
+    🦞 claw-me<span class="logo-accent">.com</span>
+  </div>
+  <a href="mailto:hello@claw-me.com" class="top-link">hello@claw-me.com</a>
+</div>
+
+<!-- Main content -->
+<main class="page">
+
+  <!-- Badge -->
+  <div class="badge">
+    <span class="badge-dot"></span>
+    OpenClaw as a Service — Launching Soon
+  </div>
+
+  <!-- Mascot -->
+  <div class="mascot-wrap">
+    <div class="mascot-glow"></div>
+    <div class="mascot-ring"></div>
+    <svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg" width="180" height="180" style="position:relative;z-index:1;">
+      <!-- Body -->
+      <ellipse cx="90" cy="104" rx="36" ry="40" fill="#1e0d09" stroke="#ff4c29" stroke-width="2"/>
+      <!-- Shell segments -->
+      <ellipse cx="90" cy="90"  rx="32" ry="26" fill="#2a1008" stroke="#ff4c29" stroke-width="1.2" opacity="0.8"/>
+      <ellipse cx="90" cy="110" rx="33" ry="19" fill="#240e07" stroke="#ff4c29" stroke-width="1.2" opacity="0.7"/>
+      <ellipse cx="90" cy="128" rx="29" ry="15" fill="#1e0d09" stroke="#ff4c29" stroke-width="1.2" opacity="0.6"/>
+      <!-- Head -->
+      <ellipse cx="90" cy="68" rx="25" ry="21" fill="#2a1008" stroke="#ff4c29" stroke-width="2"/>
+      <!-- Eyes -->
+      <circle cx="80" cy="63" r="6.5" fill="#ff4c29" opacity="0.9"/>
+      <circle cx="100" cy="63" r="6.5" fill="#ff4c29" opacity="0.9"/>
+      <circle cx="81" cy="62" r="3" fill="#fff"/>
+      <circle cx="101" cy="62" r="3" fill="#fff"/>
+      <circle cx="82" cy="61" r="1.4" fill="#111"/>
+      <circle cx="102" cy="61" r="1.4" fill="#111"/>
+      <!-- Antennae -->
+      <line x1="80" y1="52" x2="62" y2="30" stroke="#ff4c29" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="100" y1="52" x2="118" y2="30" stroke="#ff4c29" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="62" cy="30" r="2.5" fill="#ff7a52"/>
+      <circle cx="118" cy="30" r="2.5" fill="#ff7a52"/>
+      <!-- Left claw -->
+      <path d="M 66 104 Q 48 104 42 96" stroke="#ff4c29" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="36" cy="91" rx="14" ry="9" fill="#2a1008" stroke="#ff4c29" stroke-width="1.5" transform="rotate(-30 36 91)"/>
+      <path d="M 27 83 Q 18 73 22 67 Q 26 61 33 66" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
+      <path d="M 28 87 Q 16 90 15 98 Q 15 106 25 104" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
+      <!-- Right claw -->
+      <path d="M 114 104 Q 132 104 138 96" stroke="#ff4c29" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="144" cy="91" rx="14" ry="9" fill="#2a1008" stroke="#ff4c29" stroke-width="1.5" transform="rotate(30 144 91)"/>
+      <path d="M 153 83 Q 162 73 158 67 Q 154 61 147 66" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
+      <path d="M 152 87 Q 164 90 165 98 Q 165 106 155 104" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
+      <!-- Walking legs left -->
+      <line x1="64"  y1="115" x2="46" y2="130" stroke="#ff4c29" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="62"  y1="124" x2="44" y2="140" stroke="#ff4c29" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="63"  y1="134" x2="48" y2="150" stroke="#ff4c29" stroke-width="1.4" stroke-linecap="round"/>
+      <!-- Walking legs right -->
+      <line x1="116" y1="115" x2="134" y2="130" stroke="#ff4c29" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="118" y1="124" x2="136" y2="140" stroke="#ff4c29" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="117" y1="134" x2="132" y2="150" stroke="#ff4c29" stroke-width="1.4" stroke-linecap="round"/>
+      <!-- Tail -->
+      <ellipse cx="90" cy="148" rx="15" ry="7" fill="#2a1008" stroke="#ff4c29" stroke-width="1.2"/>
+      <ellipse cx="90" cy="157" rx="11" ry="5.5" fill="#1e0d09" stroke="#ff4c29" stroke-width="1.2"/>
+      <!-- Cloud + wifi on body -->
+      <text x="90" y="106" text-anchor="middle" font-family="system-ui" font-size="14" fill="#ff4c29">☁️</text>
+    </svg>
+  </div>
+
+  <!-- Headline -->
+  <h1>
+    Something big<br/>
+    <span class="line2">is clawing its way here.</span>
+  </h1>
+  <p class="subtitle">
+    OpenClaw as a Service is almost ready to deploy. Your own dedicated AI
+    assistant — personalized, cloud-hosted, always on. Be first in line
+    when the claws drop.
+  </p>
+
+  <!-- Countdown -->
+  <div class="countdown" id="countdown">
+    <div class="count-block">
+      <div class="count-num" id="cd-days">--</div>
+      <div class="count-label">Days</div>
+    </div>
+    <div class="count-sep">:</div>
+    <div class="count-block">
+      <div class="count-num" id="cd-hours">--</div>
+      <div class="count-label">Hours</div>
+    </div>
+    <div class="count-sep">:</div>
+    <div class="count-block">
+      <div class="count-num" id="cd-mins">--</div>
+      <div class="count-label">Minutes</div>
+    </div>
+    <div class="count-sep">:</div>
+    <div class="count-block">
+      <div class="count-num" id="cd-secs">--</div>
+      <div class="count-label">Seconds</div>
+    </div>
+  </div>
+
+  <!-- Email form -->
+  <div class="form-wrap">
+    <label class="form-label" for="email-input">Get early access + launch-day deal</label>
+    <div class="form-row" id="form-row">
+      <input
+        type="email" id="email-input" class="form-input"
+        placeholder="you@example.com" autocomplete="email"
+      />
+      <button class="btn-submit" onclick="handleSubmit()">🦞 Notify Me</button>
+    </div>
+    <div class="success-msg" id="success-msg">
+      🦞 You're on the list! We'll claw you when we launch.
+    </div>
+    <p class="form-note">No spam. Unsubscribe any time. Early subscribers get 30% off launch pricing.</p>
+  </div>
+
+  <!-- Feature pills -->
+  <div class="pills">
+    <div class="pill"><span class="icon">☁️</span> Dedicated cloud instance</div>
+    <div class="pill"><span class="icon">🧠</span> Persistent AI memory</div>
+    <div class="pill"><span class="icon">⚡</span> Autonomous 24/7 agents</div>
+    <div class="pill"><span class="icon">🔌</span> 50+ integrations</div>
+    <div class="pill"><span class="icon">🛡️</span> Enterprise-grade security</div>
+    <div class="pill"><span class="icon">🚀</span> Zero setup required</div>
+  </div>
+
+  <!-- Social share -->
+  <div class="social-row">
+    <span class="social-label">Spread the claw:</span>
+    <a class="social-btn"
+       href="https://twitter.com/intent/tweet?text=OpenClaw+as+a+Service+is+coming+%F0%9F%A6%9E+Get+your+own+personal+AI+in+the+cloud+%E2%80%94+check+it+out+at+claw-me.com"
+       target="_blank" rel="noopener">
+      𝕏 Share on X
+    </a>
+    <a class="social-btn"
+       href="https://www.linkedin.com/sharing/share-offsite/?url=https://claw-me.com"
+       target="_blank" rel="noopener">
+      in Share
+    </a>
+  </div>
+
+</main>
+
+<!-- Footer -->
+<div class="page-footer">
+  © 2026 claw-me.com &nbsp;·&nbsp;
+  Built on <a href="https://openclaw.ai" target="_blank">OpenClaw</a> &nbsp;·&nbsp;
+  <a href="mailto:hello@claw-me.com">hello@claw-me.com</a>
+</div>
+
+<script>
+  // ── Countdown timer ──
+  // Target: 30 days from page load (replace with your real launch date)
+  const LAUNCH = new Date('2026-04-17T09:00:00');
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function tick() {
+    const now  = new Date();
+    const diff = LAUNCH - now;
+    if (diff <= 0) {
+      document.getElementById('cd-days').textContent  = '00';
+      document.getElementById('cd-hours').textContent = '00';
+      document.getElementById('cd-mins').textContent  = '00';
+      document.getElementById('cd-secs').textContent  = '00';
+      return;
+    }
+    const days  = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins  = Math.floor((diff % 3600000)  / 60000);
+    const secs  = Math.floor((diff % 60000)    / 1000);
+    document.getElementById('cd-days').textContent  = pad(days);
+    document.getElementById('cd-hours').textContent = pad(hours);
+    document.getElementById('cd-mins').textContent  = pad(mins);
+    document.getElementById('cd-secs').textContent  = pad(secs);
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  // ── Email submit ──
+  function handleSubmit() {
+    const input = document.getElementById('email-input');
+    const email = input.value.trim();
+    const re    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!re.test(email)) {
+      input.style.borderColor = '#ff4c29';
+      input.focus();
+      return;
+    }
+    // TODO: wire up to your backend / Mailchimp / ConvertKit / etc.
+    document.getElementById('form-row').style.display    = 'none';
+    document.getElementById('success-msg').style.display = 'flex';
+  }
+
+  // Reset border on type
+  document.getElementById('email-input').addEventListener('input', function() {
+    this.style.borderColor = '';
+  });
+
+  // Allow Enter key
+  document.getElementById('email-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') handleSubmit();
+  });
+</script>
+</body>
+</html>
