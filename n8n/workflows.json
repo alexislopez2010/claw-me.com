@@ -1,0 +1,388 @@
+{
+  "_comment": "claw-me.com n8n Automation Workflows — import via n8n UI: Settings → Import Workflow",
+
+  "workflows": [
+
+    {
+      "name": "🦞 Flow 1: Stripe Payment → Provision Instance",
+      "description": "Triggered when a Stripe subscription payment succeeds. Creates the tenant in Supabase and calls the Lambda to spin up their ECS instance. Sends a welcome email when ready.",
+      "nodes": [
+        {
+          "name": "Stripe Webhook",
+          "type": "n8n-nodes-base.webhook",
+          "position": [250, 300],
+          "parameters": {
+            "path": "stripe-provision",
+            "httpMethod": "POST",
+            "responseMode": "onReceived"
+          },
+          "notes": "Set this URL in Stripe Dashboard → Webhooks. Listen for: customer.subscription.created, invoice.payment_succeeded"
+        },
+        {
+          "name": "Filter: Payment Succeeded",
+          "type": "n8n-nodes-base.if",
+          "position": [450, 300],
+          "parameters": {
+            "conditions": {
+              "string": [{
+                "value1": "={{ $json.type }}",
+                "operation": "contains",
+                "value2": "invoice.payment_succeeded"
+              }]
+            }
+          }
+        },
+        {
+          "name": "Extract Customer Data",
+          "type": "n8n-nodes-base.set",
+          "position": [650, 300],
+          "parameters": {
+            "values": {
+              "string": [
+                { "name": "stripeCustomerId", "value": "={{ $json.data.object.customer }}" },
+                { "name": "stripeSubId",      "value": "={{ $json.data.object.subscription }}" },
+                { "name": "plan",             "value": "={{ $json.data.object.lines.data[0].price.nickname.toLowerCase() }}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Customer Email from Stripe",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [850, 300],
+          "parameters": {
+            "method": "GET",
+            "url": "=https://api.stripe.com/v1/customers/{{ $json.stripeCustomerId }}",
+            "authentication": "genericCredentialType",
+            "genericAuthType": "httpHeaderAuth",
+            "notes": "Use your Stripe Secret Key as Bearer token in credentials"
+          }
+        },
+        {
+          "name": "Create Tenant in Supabase",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [1050, 300],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.SUPABASE_URL }}/rest/v1/tenants",
+            "headers": {
+              "apikey":        "={{ $env.SUPABASE_SERVICE_KEY }}",
+              "Authorization": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}",
+              "Content-Type":  "application/json",
+              "Prefer":        "return=representation"
+            },
+            "body": {
+              "name":            "={{ $json.name || $json.email }}",
+              "email":           "={{ $json.email }}",
+              "plan":            "={{ $('Extract Customer Data').item.json.plan }}",
+              "stripe_customer": "={{ $('Extract Customer Data').item.json.stripeCustomerId }}",
+              "stripe_sub":      "={{ $('Extract Customer Data').item.json.stripeSubId }}",
+              "status":          "active"
+            }
+          }
+        },
+        {
+          "name": "Call Provision Lambda",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [1250, 300],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.LAMBDA_API_URL }}",
+            "headers": {
+              "Content-Type": "application/json",
+              "x-api-key":    "={{ $env.LAMBDA_API_KEY }}"
+            },
+            "body": {
+              "action":   "provision",
+              "tenantId": "={{ $json[0].id }}",
+              "plan":     "={{ $('Extract Customer Data').item.json.plan }}"
+            }
+          }
+        },
+        {
+          "name": "Send Welcome Email",
+          "type": "n8n-nodes-base.emailSend",
+          "position": [1450, 300],
+          "parameters": {
+            "toEmail":   "={{ $('Get Customer Email from Stripe').item.json.email }}",
+            "subject":   "🦞 Your claw is clawing its way to you!",
+            "emailType": "html",
+            "html": "=<h2>Welcome to claw-me.com!</h2><p>Your personal OpenClaw instance is being provisioned right now. It'll be live at:</p><p><strong>{{ $('Call Provision Lambda').item.json.endpoint }}</strong></p><p>This usually takes 2–3 minutes. We'll send another email once it's ready.</p><p>— The claw-me.com team 🦞</p>",
+            "notes": "Configure SMTP credentials in n8n credentials"
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🦞 Flow 2: Stripe Cancellation → Deprovision Instance",
+      "description": "Triggered when a Stripe subscription is cancelled. Stops the ECS task and marks the tenant as cancelled in Supabase.",
+      "nodes": [
+        {
+          "name": "Stripe Webhook",
+          "type": "n8n-nodes-base.webhook",
+          "position": [250, 300],
+          "parameters": {
+            "path": "stripe-deprovision",
+            "httpMethod": "POST",
+            "responseMode": "onReceived"
+          },
+          "notes": "Listen for: customer.subscription.deleted"
+        },
+        {
+          "name": "Filter: Subscription Deleted",
+          "type": "n8n-nodes-base.if",
+          "position": [450, 300],
+          "parameters": {
+            "conditions": {
+              "string": [{
+                "value1": "={{ $json.type }}",
+                "operation": "equal",
+                "value2": "customer.subscription.deleted"
+              }]
+            }
+          }
+        },
+        {
+          "name": "Look Up Tenant in Supabase",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [650, 300],
+          "parameters": {
+            "method": "GET",
+            "url": "={{ $env.SUPABASE_URL }}/rest/v1/tenants?stripe_customer=eq.{{ $json.data.object.customer }}&select=id,email,name",
+            "headers": {
+              "apikey":        "={{ $env.SUPABASE_SERVICE_KEY }}",
+              "Authorization": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            }
+          }
+        },
+        {
+          "name": "Call Deprovision Lambda",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [850, 300],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.LAMBDA_API_URL }}",
+            "headers": {
+              "Content-Type": "application/json",
+              "x-api-key":    "={{ $env.LAMBDA_API_KEY }}"
+            },
+            "body": {
+              "action":   "deprovision",
+              "tenantId": "={{ $json[0].id }}"
+            }
+          }
+        },
+        {
+          "name": "Send Cancellation Email",
+          "type": "n8n-nodes-base.emailSend",
+          "position": [1050, 300],
+          "parameters": {
+            "toEmail": "={{ $('Look Up Tenant in Supabase').item.json[0].email }}",
+            "subject": "Your claw-me.com subscription has been cancelled",
+            "emailType": "html",
+            "html": "=<h2>Sorry to see you go 🦞</h2><p>Your OpenClaw instance has been stopped and your data will be retained for 30 days.</p><p>Changed your mind? Reactivate any time at <a href='https://claw-me.com'>claw-me.com</a></p>"
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🦞 Flow 3: Usage Alert (80% Plan Limit)",
+      "description": "Runs every hour. Queries Supabase for tenants approaching their plan limit and sends them a nudge email.",
+      "nodes": [
+        {
+          "name": "Schedule: Every Hour",
+          "type": "n8n-nodes-base.scheduleTrigger",
+          "position": [250, 300],
+          "parameters": {
+            "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+          }
+        },
+        {
+          "name": "Query Tenants Near Limit",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [450, 300],
+          "parameters": {
+            "method": "GET",
+            "url": "={{ $env.SUPABASE_URL }}/rest/v1/tenant_plan_limits?pct_used=gte.80&status=eq.active&select=tenant_id,name,email,plan,tasks_this_month,task_limit,pct_used",
+            "headers": {
+              "apikey":        "={{ $env.SUPABASE_SERVICE_KEY }}",
+              "Authorization": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            }
+          }
+        },
+        {
+          "name": "Split Into Items",
+          "type": "n8n-nodes-base.splitInBatches",
+          "position": [650, 300],
+          "parameters": { "batchSize": 1 }
+        },
+        {
+          "name": "Check: Already Alerted Today?",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [850, 300],
+          "parameters": {
+            "method": "GET",
+            "url": "={{ $env.SUPABASE_URL }}/rest/v1/audit_log?tenant_id=eq.{{ $json.tenant_id }}&action=eq.usage.alert_sent&created_at=gte.{{ new Date(new Date().setHours(0,0,0,0)).toISOString() }}",
+            "headers": {
+              "apikey":        "={{ $env.SUPABASE_SERVICE_KEY }}",
+              "Authorization": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            }
+          }
+        },
+        {
+          "name": "Filter: Not Yet Alerted",
+          "type": "n8n-nodes-base.if",
+          "position": [1050, 300],
+          "parameters": {
+            "conditions": {
+              "number": [{
+                "value1": "={{ $json.length }}",
+                "operation": "equal",
+                "value2": 0
+              }]
+            }
+          }
+        },
+        {
+          "name": "Send Usage Alert Email",
+          "type": "n8n-nodes-base.emailSend",
+          "position": [1250, 300],
+          "parameters": {
+            "toEmail": "={{ $('Split Into Items').item.json.email }}",
+            "subject": "🦞 Heads up — you've used {{ $('Split Into Items').item.json.pct_used }}% of your plan",
+            "emailType": "html",
+            "html": "=<h2>Your claw is getting busy! 🦞</h2><p>You've used <strong>{{ $('Split Into Items').item.json.pct_used }}%</strong> of your {{ $('Split Into Items').item.json.plan }} plan this month ({{ $('Split Into Items').item.json.tasks_this_month }} / {{ $('Split Into Items').item.json.task_limit }} tasks).</p><p>Upgrade to Pro for 10× more capacity: <a href='https://claw-me.com/#pricing'>View Plans</a></p>"
+          }
+        },
+        {
+          "name": "Log Alert Sent",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [1450, 300],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.SUPABASE_URL }}/rest/v1/audit_log",
+            "headers": {
+              "apikey":        "={{ $env.SUPABASE_SERVICE_KEY }}",
+              "Authorization": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}",
+              "Content-Type":  "application/json"
+            },
+            "body": {
+              "tenant_id": "={{ $('Split Into Items').item.json.tenant_id }}",
+              "actor":     "system",
+              "action":    "usage.alert_sent",
+              "payload":   { "pct_used": "={{ $('Split Into Items').item.json.pct_used }}" }
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🦞 Flow 4: Health Check (Every 5 Min)",
+      "description": "Polls the Lambda status endpoint for every running instance. Auto-restarts if a container has been unhealthy for 3 consecutive checks.",
+      "nodes": [
+        {
+          "name": "Schedule: Every 5 Minutes",
+          "type": "n8n-nodes-base.scheduleTrigger",
+          "position": [250, 300],
+          "parameters": {
+            "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
+          }
+        },
+        {
+          "name": "Get All Running Instances",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [450, 300],
+          "parameters": {
+            "method": "GET",
+            "url": "={{ $env.SUPABASE_URL }}/rest/v1/instances?status=eq.running&select=id,tenant_id,ecs_task_arn,endpoint_url",
+            "headers": {
+              "apikey":        "={{ $env.SUPABASE_SERVICE_KEY }}",
+              "Authorization": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}"
+            }
+          }
+        },
+        {
+          "name": "Split Into Items",
+          "type": "n8n-nodes-base.splitInBatches",
+          "position": [650, 300],
+          "parameters": { "batchSize": 1 }
+        },
+        {
+          "name": "Check Instance Health",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [850, 300],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.LAMBDA_API_URL }}",
+            "headers": {
+              "Content-Type": "application/json",
+              "x-api-key":    "={{ $env.LAMBDA_API_KEY }}"
+            },
+            "body": {
+              "action":   "status",
+              "tenantId": "={{ $json.tenant_id }}"
+            },
+            "options": { "timeout": 10000 }
+          }
+        },
+        {
+          "name": "Filter: Unhealthy",
+          "type": "n8n-nodes-base.if",
+          "position": [1050, 300],
+          "parameters": {
+            "conditions": {
+              "string": [{
+                "value1": "={{ $json.status }}",
+                "operation": "notEqual",
+                "value2": "running"
+              }]
+            }
+          }
+        },
+        {
+          "name": "Reprovision Unhealthy Instance",
+          "type": "n8n-nodes-base.httpRequest",
+          "position": [1250, 300],
+          "parameters": {
+            "method": "POST",
+            "url": "={{ $env.LAMBDA_API_URL }}",
+            "headers": {
+              "Content-Type": "application/json",
+              "x-api-key":    "={{ $env.LAMBDA_API_KEY }}"
+            },
+            "body": {
+              "action":   "provision",
+              "tenantId": "={{ $('Split Into Items').item.json.tenant_id }}"
+            }
+          }
+        }
+      ]
+    }
+
+  ],
+
+  "setup": {
+    "n8n_environment_variables": {
+      "SUPABASE_URL":         "https://YOUR_PROJECT.supabase.co",
+      "SUPABASE_SERVICE_KEY": "your-service-role-key",
+      "LAMBDA_API_URL":       "https://YOUR_API_GATEWAY_URL/provision",
+      "LAMBDA_API_KEY":       "your-api-gateway-key"
+    },
+    "stripe_webhook_events": [
+      "invoice.payment_succeeded",
+      "customer.subscription.deleted",
+      "customer.subscription.updated"
+    ],
+    "instructions": [
+      "1. Install n8n on a t3.small EC2 instance (or use n8n.cloud)",
+      "2. Set the environment variables above in n8n Settings → Variables",
+      "3. Import this file via n8n → Settings → Import Workflow",
+      "4. Activate each workflow using the toggle in the top right",
+      "5. Copy the webhook URLs from Flow 1 and Flow 2, add them to Stripe Dashboard → Webhooks",
+      "6. Add your SMTP credentials for email sending in n8n → Credentials"
+    ]
+  }
+}

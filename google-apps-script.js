@@ -21,9 +21,9 @@ const SHEET_NAME = 'Sheet1'; // Change if your sheet tab has a different name
 
 function doPost(e) {
   try {
-    const data      = JSON.parse(e.postData.contents);
-    const email     = data.email     || '';
-    const timestamp = data.timestamp || new Date().toISOString();
+    // Reads URL-encoded form params (compatible with no-cors fetch)
+    const email     = (e.parameter.email     || '').trim();
+    const timestamp =  e.parameter.timestamp || new Date().toISOString();
 
     // Basic email validation server-side
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

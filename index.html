@@ -459,11 +459,12 @@
     btn.disabled    = true;
     btn.textContent = 'Submitting…';
 
+    // Use URLSearchParams — the only content-type that survives no-cors mode
     fetch(SHEET_URL, {
       method: 'POST',
-      mode:   'no-cors', // required for Apps Script
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, timestamp: new Date().toISOString() })
+      mode:   'no-cors',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ email: email, timestamp: new Date().toISOString() })
     })
     .then(() => {
       document.getElementById('form-row').style.display    = 'none';
