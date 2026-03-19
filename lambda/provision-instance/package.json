@@ -1,0 +1,12 @@
+{
+  "name": "provision-instance",
+  "version": "1.0.0",
+  "description": "claw-me.com — ECS instance provisioning Lambda",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-ecs": "^3.0.0",
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "@aws-sdk/client-route-53": "^3.0.0",
+    "@supabase/supabase-js": "^2.0.0"
+  }
+}
