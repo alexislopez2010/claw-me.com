@@ -585,9 +585,9 @@ async function loadInstances() {
       <td><strong>${i.tenants?.name || '—'}</strong><br><small style="color:var(--muted)">${i.tenants?.email || ''}</small></td>
       <td>${badge(i.status)}</td>
       <td style="font-size:12px;color:var(--muted)">${i.region || '—'}</td>
-      <td style="font-size:12px"><a href="${i.endpoint}" target="_blank" style="color:var(--accent2)">${i.endpoint || '—'}</a></td>
+      <td style="font-size:12px"><a href="${i.endpoint_url}" target="_blank" style="color:var(--accent2)">${i.endpoint_url || '—'}</a></td>
       <td style="font-size:12px;color:var(--muted)">${fmt(i.created_at)}</td>
-      <td style="font-size:12px;color:var(--muted)">${i.task_arn ? i.task_arn.split('/').pop().slice(0,12) + '…' : '—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${i.ecs_task_arn ? i.ecs_task_arn.split('/').pop().slice(0,12) + '…' : '—'}</td>
     </tr>`).join('');
 
   document.getElementById('instances-table-wrap').innerHTML = `
