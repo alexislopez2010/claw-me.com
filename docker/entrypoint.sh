@@ -3,7 +3,7 @@ set -e
 
 echo "🦞 claw-me.com — Starting OpenClaw for tenant: ${TENANT_ID:-unknown}"
 
-# ── Pull secrets from AWS Secrets Manager if SECRET_NAME is set ──
+# ── Pull secrets from AWS Secrets Manager ──
 if [ -n "$SECRET_NAME" ] && [ -n "$AWS_DEFAULT_REGION" ]; then
   echo "Pulling config from Secrets Manager: $SECRET_NAME"
   SECRET_JSON=$(aws secretsmanager get-secret-value \
@@ -24,20 +24,38 @@ if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then
   echo "Generated new gateway token"
 fi
 
-# ── Get public IP ──
-PUBLIC_IP=$(curl -s --max-time 5 https://checkip.amazonaws.com || echo "")
-GATEWAY_ENDPOINT="http://${PUBLIC_IP}:${GATEWAY_PORT:-18789}"
-echo "Public IP: ${PUBLIC_IP:-unknown}"
+# ── Get container private IP for ALB registration ──
+PRIVATE_IP=$(curl -s --max-time 5 "${ECS_CONTAINER_METADATA_URI_V4}/task" 2>/dev/null \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['Containers'][0]['Networks'][0]['IPv4Addresses'][0])" 2>/dev/null \
+  || hostname -I | awk '{print $1}')
+echo "Private IP: ${PRIVATE_IP:-unknown}"
+
+# ── Use HTTPS endpoint from Lambda if provided, else fall back to public IP ──
+if [ -n "$HTTPS_ENDPOINT" ]; then
+  GATEWAY_ENDPOINT="$HTTPS_ENDPOINT"
+else
+  PUBLIC_IP=$(curl -s --max-time 5 https://checkip.amazonaws.com || echo "")
+  GATEWAY_ENDPOINT="http://${PUBLIC_IP}:${GATEWAY_PORT:-18789}"
+fi
 echo "Gateway endpoint: $GATEWAY_ENDPOINT"
+
+# ── Register container with ALB target group ──
+if [ -n "$TARGET_GROUP_ARN" ] && [ -n "$PRIVATE_IP" ] && [ -n "$AWS_DEFAULT_REGION" ]; then
+  aws elbv2 register-targets \
+    --target-group-arn "$TARGET_GROUP_ARN" \
+    --targets "Id=${PRIVATE_IP},Port=${GATEWAY_PORT:-18789}" \
+    --region "$AWS_DEFAULT_REGION" \
+    > /dev/null 2>&1 && echo "Registered with ALB target group" || echo "Warning: could not register with ALB"
+fi
 
 # ── Store gateway token + endpoint back to Secrets Manager ──
 if [ -n "$SECRET_NAME" ] && [ -n "$AWS_DEFAULT_REGION" ]; then
   UPDATED_SECRET=$(echo "$SECRET_JSON" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
-d['gatewayToken']   = '${OPENCLAW_GATEWAY_TOKEN}'
+d['gatewayToken']    = '${OPENCLAW_GATEWAY_TOKEN}'
 d['gatewayEndpoint'] = '${GATEWAY_ENDPOINT}'
-d['publicIp']        = '${PUBLIC_IP}'
+d['privateIp']       = '${PRIVATE_IP}'
 print(json.dumps(d))
 " 2>/dev/null || echo "{}")
 
@@ -48,7 +66,7 @@ print(json.dumps(d))
     > /dev/null 2>&1 && echo "Stored gateway token in Secrets Manager" || echo "Warning: could not update secret"
 fi
 
-# ── Update Supabase instance with real endpoint + gateway token ──
+# ── Update Supabase instance with HTTPS endpoint + gateway token ──
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ] && [ -n "$TENANT_ID" ]; then
   SUPABASE_PAYLOAD="{\"endpoint_url\": \"${GATEWAY_ENDPOINT}\", \"gateway_token\": \"${OPENCLAW_GATEWAY_TOKEN}\"}"
   curl -s -X PATCH \
