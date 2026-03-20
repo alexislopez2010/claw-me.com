@@ -358,8 +358,17 @@
 //  CONFIG
 // ──────────────────────────────────────────────
 const SUPABASE_URL = 'https://xfklynglppislmdhjtut.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_yk-fRsmSyHwE5sE1L1wzmw_qw-QHghl';
 const API_GW       = 'https://1ennrvc596.execute-api.us-east-1.amazonaws.com/prod';
+
+function promptForKey() {
+  const k = window.prompt('claw-me Admin\n\nEnter Supabase service role key:');
+  if (!k) { document.body.innerHTML = '<div style="color:#ef4444;padding:40px;font-family:monospace">No key provided. Reload to try again.</div>'; throw new Error('No key'); }
+  sessionStorage.setItem('admin_key', k);
+  return k;
+}
+const SUPABASE_KEY = (typeof window.SUPABASE_KEY !== 'undefined')
+  ? window.SUPABASE_KEY
+  : (sessionStorage.getItem('admin_key') || promptForKey());
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
