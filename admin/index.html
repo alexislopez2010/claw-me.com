@@ -324,6 +324,39 @@
 </div>
 
 <!-- ── Modals ── -->
+
+<!-- Credentials modal -->
+<div class="modal-overlay" id="modal-creds">
+  <div class="modal" style="max-width:520px">
+    <h3 style="margin-bottom:18px">🔑 Instance Credentials</h3>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Tenant</label>
+      <div id="creds-tenant-name" style="font-size:16px;font-weight:600;margin-top:4px"></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Gateway URL</label>
+      <div style="display:flex;gap:8px;margin-top:4px;align-items:center">
+        <code id="creds-endpoint" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;word-break:break-all;color:var(--accent2)"></code>
+        <button class="btn btn-ghost btn-sm" onclick="copyField('creds-endpoint')">Copy</button>
+      </div>
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Gateway Token</label>
+      <div style="display:flex;gap:8px;margin-top:4px;align-items:center">
+        <code id="creds-token" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;word-break:break-all;color:var(--green)"></code>
+        <button class="btn btn-ghost btn-sm" onclick="copyField('creds-token')">Copy</button>
+      </div>
+    </div>
+    <p id="creds-no-token" style="display:none;color:var(--yellow);font-size:13px;margin-bottom:16px">
+      ⚠️ Token not yet stored — the container may still be starting, or was provisioned before this feature was added.
+      Retrieve it manually: <code style="font-size:12px">aws secretsmanager get-secret-value --secret-id openclaw/tenants/TENANT_ID --query SecretString --output text</code>
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal('modal-creds')">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-new-tenant">
   <div class="modal">
     <h3>New Tenant</h3>
@@ -588,13 +621,42 @@ async function loadInstances() {
       <td style="font-size:12px"><a href="${i.endpoint_url}" target="_blank" style="color:var(--accent2)">${i.endpoint_url || '—'}</a></td>
       <td style="font-size:12px;color:var(--muted)">${fmt(i.created_at)}</td>
       <td style="font-size:12px;color:var(--muted)">${i.ecs_task_arn ? i.ecs_task_arn.split('/').pop().slice(0,12) + '…' : '—'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="showCreds(${JSON.stringify(JSON.stringify(i))})">🔑 Creds</button></td>
     </tr>`).join('');
 
   document.getElementById('instances-table-wrap').innerHTML = `
     <table>
-      <thead><tr><th>Tenant</th><th>Status</th><th>Region</th><th>Endpoint</th><th>Created</th><th>Task ARN</th></tr></thead>
+      <thead><tr><th>Tenant</th><th>Status</th><th>Region</th><th>Endpoint</th><th>Created</th><th>Task ARN</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+}
+
+function showCreds(jsonStr) {
+  const i = JSON.parse(jsonStr);
+  document.getElementById('creds-tenant-name').textContent = i.tenants?.name || '(unknown)';
+  document.getElementById('creds-endpoint').textContent   = i.endpoint_url || '—';
+  const tokenEl   = document.getElementById('creds-token');
+  const noTokenEl = document.getElementById('creds-no-token');
+  if (i.gateway_token) {
+    tokenEl.textContent    = i.gateway_token;
+    tokenEl.style.display  = '';
+    noTokenEl.style.display = 'none';
+  } else {
+    tokenEl.textContent    = '';
+    tokenEl.style.display  = 'none';
+    noTokenEl.style.display = '';
+  }
+  openModal('modal-creds');
+}
+
+function copyField(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => toast('Copied!', 'success')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast('Copied!', 'success');
+  });
 }
 
 // ──────────────────────────────────────────────
