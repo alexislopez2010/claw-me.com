@@ -524,6 +524,7 @@ function renderTenantsTable(tenants) {
       <td style="color:var(--muted);font-size:12px">${fmt(t.created_at)}</td>
       <td>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="provisionTenant('${t.id}','${t.name}')">Provision</button>
           ${t.status !== 'suspended' ? `<button class="btn btn-warn btn-sm" onclick="suspendTenant('${t.id}','${t.name}')">Suspend</button>` : `<button class="btn btn-success btn-sm" onclick="reactivateTenant('${t.id}','${t.name}')">Reactivate</button>`}
           <button class="btn btn-danger btn-sm" onclick="deprovisionTenant('${t.id}','${t.name}')">Deprovision</button>
         </div>
@@ -563,6 +564,18 @@ async function deprovisionTenant(id, name) {
       toast('Deprovisioning…', 'info');
       await lambdaCall('deprovision', id, null);
       toast(`${name} deprovisioned`, 'success');
+      loadTenants();
+    } catch(e) { toast('Lambda error: ' + e.message, 'error'); }
+  });
+}
+
+async function provisionTenant(id, name) {
+  confirm(`Provision ${name}?`, 'This will start a new ECS container for this tenant.', async () => {
+    try {
+      toast('Provisioning…', 'info');
+      await lambdaCall('provision', id, 'US');
+      await db.from('tenants').update({ status: 'active' }).eq('id', id);
+      toast(`${name} provisioned!`, 'success');
       loadTenants();
     } catch(e) { toast('Lambda error: ' + e.message, 'error'); }
   });
