@@ -501,9 +501,9 @@
   tick();
   setInterval(tick, 1000);
 
-  // ── Email submit ──
-  // Replace this URL with your deployed Google Apps Script Web App URL
-  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyWffCXDbY23aCA65WJkammJYMYaQqR0AgAqKakTN52S0bs7vA0zkkt3WsUovoPoLbLjw/exec';
+  // ── Email submit (Supabase) ──
+  const SUPABASE_URL = 'https://xfklynglppislmdhjtut.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_yk-fRsmSyHwE5sE1L1wzmw_qw-QHghl';
 
   function handleSubmit() {
     const input  = document.getElementById('email-input');
@@ -520,21 +520,34 @@
     btn.disabled    = true;
     btn.textContent = 'Submitting…';
 
-    // Use URLSearchParams — the only content-type that survives no-cors mode
-    fetch(SHEET_URL, {
+    fetch(`${SUPABASE_URL}/rest/v1/waitlist`, {
       method: 'POST',
-      mode:   'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ email: email, timestamp: new Date().toISOString() })
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type':  'application/json',
+        'Prefer':        'return=minimal'
+      },
+      body: JSON.stringify({ email: email })
     })
-    .then(() => {
-      document.getElementById('form-row').style.display    = 'none';
-      document.getElementById('success-msg').style.display = 'flex';
+    .then(res => {
+      if (res.ok || res.status === 201) {
+        document.getElementById('form-row').style.display    = 'none';
+        document.getElementById('success-msg').style.display = 'flex';
+      } else if (res.status === 409) {
+        // Duplicate email — still show success
+        document.getElementById('form-row').style.display    = 'none';
+        document.getElementById('success-msg').style.display = 'flex';
+      } else {
+        btn.disabled    = false;
+        btn.textContent = 'Notify Me';
+        input.style.borderColor = '#ff4c29';
+      }
     })
     .catch(() => {
-      // Still show success — no-cors means we can't read errors anyway
-      document.getElementById('form-row').style.display    = 'none';
-      document.getElementById('success-msg').style.display = 'flex';
+      btn.disabled    = false;
+      btn.textContent = 'Notify Me';
+      input.style.borderColor = '#ff4c29';
     });
   }
 
