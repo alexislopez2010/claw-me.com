@@ -1,0 +1,55 @@
+<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" width="240" height="240">
+  <!-- Dark circular background -->
+  <circle cx="120" cy="120" r="120" fill="#0d0f14"/>
+  <circle cx="120" cy="120" r="116" fill="none" stroke="#ff4c29" stroke-width="2" opacity="0.3"/>
+
+  <!-- Lobster mascot (centered, offset to cx=120, cy=120) -->
+  <g transform="translate(30, 18)">
+    <!-- Body -->
+    <ellipse cx="90" cy="104" rx="36" ry="40" fill="#1e0d09" stroke="#ff4c29" stroke-width="2"/>
+    <!-- Shell segments -->
+    <ellipse cx="90" cy="90"  rx="32" ry="26" fill="#2a1008" stroke="#ff4c29" stroke-width="1.2" opacity="0.8"/>
+    <ellipse cx="90" cy="110" rx="33" ry="19" fill="#240e07" stroke="#ff4c29" stroke-width="1.2" opacity="0.7"/>
+    <ellipse cx="90" cy="128" rx="29" ry="15" fill="#1e0d09" stroke="#ff4c29" stroke-width="1.2" opacity="0.6"/>
+    <!-- Head -->
+    <ellipse cx="90" cy="68" rx="25" ry="21" fill="#2a1008" stroke="#ff4c29" stroke-width="2"/>
+    <!-- Eyes -->
+    <circle cx="80" cy="63" r="6.5" fill="#ff4c29" opacity="0.9"/>
+    <circle cx="100" cy="63" r="6.5" fill="#ff4c29" opacity="0.9"/>
+    <circle cx="81" cy="62" r="3" fill="#fff"/>
+    <circle cx="101" cy="62" r="3" fill="#fff"/>
+    <circle cx="82" cy="61" r="1.4" fill="#111"/>
+    <circle cx="102" cy="61" r="1.4" fill="#111"/>
+    <!-- Antennae -->
+    <line x1="80" y1="52" x2="62" y2="30" stroke="#ff4c29" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="100" y1="52" x2="118" y2="30" stroke="#ff4c29" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="62" cy="30" r="2.5" fill="#ff7a52"/>
+    <circle cx="118" cy="30" r="2.5" fill="#ff7a52"/>
+    <!-- Left claw -->
+    <path d="M 66 104 Q 48 104 42 96" stroke="#ff4c29" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <ellipse cx="36" cy="91" rx="14" ry="9" fill="#2a1008" stroke="#ff4c29" stroke-width="1.5" transform="rotate(-30 36 91)"/>
+    <path d="M 27 83 Q 18 73 22 67 Q 26 61 33 66" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
+    <path d="M 28 87 Q 16 90 15 98 Q 15 106 25 104" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
+    <!-- Right claw -->
+    <path d="M 114 104 Q 132 104 138 96" stroke="#ff4c29" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <ellipse cx="144" cy="91" rx="14" ry="9" fill="#2a1008" stroke="#ff4c29" stroke-width="1.5" transform="rotate(30 144 91)"/>
+    <path d="M 153 83 Q 162 73 158 67 Q 154 61 147 66" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
+    <path d="M 152 87 Q 164 90 165 98 Q 165 106 155 104" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
+    <!-- Walking legs left -->
+    <line x1="64"  y1="115" x2="46" y2="130" stroke="#ff4c29" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="62"  y1="124" x2="44" y2="140" stroke="#ff4c29" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="63"  y1="134" x2="48" y2="150" stroke="#ff4c29" stroke-width="1.4" stroke-linecap="round"/>
+    <!-- Walking legs right -->
+    <line x1="116" y1="115" x2="134" y2="130" stroke="#ff4c29" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="118" y1="124" x2="136" y2="140" stroke="#ff4c29" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="117" y1="134" x2="132" y2="150" stroke="#ff4c29" stroke-width="1.4" stroke-linecap="round"/>
+    <!-- Tail -->
+    <ellipse cx="90" cy="148" rx="15" ry="7" fill="#2a1008" stroke="#ff4c29" stroke-width="1.2"/>
+    <ellipse cx="90" cy="157" rx="11" ry="5.5" fill="#1e0d09" stroke="#ff4c29" stroke-width="1.2"/>
+    <!-- Cloud on body -->
+    <text x="90" y="106" text-anchor="middle" font-family="system-ui" font-size="14" fill="#ff4c29">☁️</text>
+  </g>
+
+  <!-- Brand text -->
+  <text x="120" y="214" text-anchor="middle" font-family="Inter, system-ui, -apple-system, sans-serif" font-weight="700" font-size="22" fill="#e8eaf0">claw-me<tspan fill="#ff4c29">.com</tspan></text>
+</svg>
