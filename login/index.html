@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>claw-me.com — Log in to your instance</title>
+  <meta name="description" content="Sign in to your claw-me OpenClaw instance." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0d0f14;
+      --surface:  #13161e;
+      --border:   #252a38;
+      --accent:   #ff4c29;
+      --accent2:  #ff7a52;
+      --text:     #e8eaf0;
+      --muted:    #8891a8;
+    }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Starfield */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        radial-gradient(1px 1px at 15% 12%, rgba(255,255,255,0.18) 0%, transparent 100%),
+        radial-gradient(1px 1px at 38% 7%,  rgba(255,255,255,0.12) 0%, transparent 100%),
+        radial-gradient(1px 1px at 60% 22%, rgba(255,255,255,0.15) 0%, transparent 100%),
+        radial-gradient(1px 1px at 82% 5%,  rgba(255,255,255,0.10) 0%, transparent 100%),
+        radial-gradient(1px 1px at 5%  40%, rgba(255,255,255,0.08) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 35%, rgba(255,255,255,0.14) 0%, transparent 100%),
+        radial-gradient(1px 1px at 72% 60%, rgba(255,255,255,0.09) 0%, transparent 100%),
+        radial-gradient(1px 1px at 25% 75%, rgba(255,255,255,0.12) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* Radial glow */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 0%, rgba(255,76,41,0.10) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 30% at 50% 100%, rgba(255,76,41,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Nav */
+    .top-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 56px;
+      background: rgba(13,15,20,0.7); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em;
+      text-decoration: none; color: var(--text);
+    }
+    .logo-accent { color: var(--accent); }
+    .top-link {
+      font-size: 0.82rem; color: var(--muted); font-weight: 500;
+      transition: color 0.2s; text-decoration: none;
+    }
+    .top-link:hover { color: var(--text); }
+
+    /* Page */
+    .page {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 80px 24px 40px;
+      text-align: center;
+    }
+
+    /* Login card */
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 40px;
+      max-width: 440px;
+      width: 100%;
+    }
+    .login-logo {
+      width: 72px; height: 72px;
+      margin: 0 auto 24px;
+    }
+    .login-title {
+      font-size: 1.5rem; font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .login-subtitle {
+      font-size: 0.9rem; color: var(--muted);
+      line-height: 1.6; margin-bottom: 32px;
+    }
+
+    /* Instance input */
+    .instance-label {
+      display: block; text-align: left;
+      font-size: 0.82rem; font-weight: 600;
+      color: var(--muted); margin-bottom: 8px;
+    }
+    .instance-row {
+      display: flex; align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+      margin-bottom: 8px;
+    }
+    .instance-row:focus-within {
+      border-color: var(--accent);
+    }
+    .instance-input {
+      flex: 1;
+      background: transparent; border: none;
+      padding: 14px 16px; font-size: 1rem;
+      color: var(--text); outline: none;
+      font-family: inherit;
+      min-width: 0;
+    }
+    .instance-input::placeholder { color: var(--muted); opacity: 0.6; }
+    .instance-suffix {
+      display: flex; align-items: center;
+      background: rgba(255,76,41,0.08);
+      padding: 0 14px;
+      font-size: 0.88rem; font-weight: 600;
+      color: var(--accent); white-space: nowrap;
+      border-left: 1px solid var(--border);
+    }
+
+    .btn-go {
+      width: 100%;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 10px;
+      padding: 14px 24px;
+      font-size: 1rem; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      margin-top: 16px;
+    }
+    .btn-go:hover {
+      background: var(--accent2);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(255,76,41,0.35);
+    }
+    .btn-go:disabled {
+      opacity: 0.5; cursor: not-allowed;
+      transform: none; box-shadow: none;
+    }
+
+    .login-error {
+      display: none;
+      font-size: 0.82rem; color: var(--accent);
+      margin-top: 8px; text-align: left;
+    }
+
+    .login-help {
+      font-size: 0.78rem; color: var(--muted);
+      margin-top: 24px; line-height: 1.6;
+    }
+    .login-help a {
+      color: var(--accent); text-decoration: none;
+    }
+    .login-help a:hover { text-decoration: underline; }
+
+    /* Back link */
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.82rem; color: var(--muted);
+      text-decoration: none; margin-top: 24px;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--text); }
+
+    /* Footer */
+    .page-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      text-align: center; padding: 14px;
+      font-size: 0.78rem; color: var(--muted);
+      background: rgba(13,15,20,0.6); backdrop-filter: blur(8px);
+      border-top: 1px solid var(--border);
+      z-index: 5;
+    }
+    .page-footer a { color: var(--muted); text-decoration: none; }
+    .page-footer a:hover { color: var(--accent); }
+
+    @media (max-width: 500px) {
+      .login-card { padding: 36px 24px; }
+      .instance-suffix { font-size: 0.78rem; padding: 0 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <a href="/" class="logo">
+    🦞 claw-me<span class="logo-accent">.com</span>
+  </a>
+  <a href="mailto:hello@claw-me.com" class="top-link">hello@claw-me.com</a>
+</div>
+
+<!-- Main content -->
+<main class="page">
+
+  <div class="login-card">
+    <img src="/logo.svg" alt="claw-me.com" class="login-logo" />
+    <h1 class="login-title">Welcome back</h1>
+    <p class="login-subtitle">
+      Enter your instance name to sign in to your dedicated OpenClaw assistant.
+    </p>
+
+    <label class="instance-label" for="instance-input">Your instance name</label>
+    <div class="instance-row">
+      <input
+        type="text" id="instance-input" class="instance-input"
+        placeholder="my-instance"
+        autocomplete="off" autocapitalize="none" spellcheck="false"
+      />
+      <span class="instance-suffix">.claw-me.com</span>
+    </div>
+    <div class="login-error" id="login-error">
+      Please enter a valid instance name (letters, numbers, hyphens only).
+    </div>
+
+    <button class="btn-go" id="btn-go" onclick="goToInstance()">
+      🦞 Sign in
+    </button>
+
+    <p class="login-help">
+      Don't have an instance yet?
+      <a href="/">Sign up for early access</a>
+    </p>
+  </div>
+
+  <a href="/" class="back-link">← Back to claw-me.com</a>
+
+</main>
+
+<!-- Footer -->
+<div class="page-footer">
+  © 2026 claw-me.com &nbsp;·&nbsp;
+  Built on <a href="https://openclaw.ai" target="_blank">OpenClaw</a> &nbsp;·&nbsp;
+  <a href="mailto:hello@claw-me.com">hello@claw-me.com</a>
+</div>
+
+<script>
+  const input = document.getElementById('instance-input');
+  const btn   = document.getElementById('btn-go');
+  const error = document.getElementById('login-error');
+
+  // Valid subdomain: letters, numbers, hyphens, 1-63 chars
+  const VALID = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+
+  function goToInstance() {
+    const name = input.value.trim().toLowerCase();
+    if (!name || !VALID.test(name)) {
+      error.style.display = 'block';
+      input.focus();
+      return;
+    }
+    error.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Redirecting…';
+    window.location.href = 'https://' + name + '.claw-me.com';
+  }
+
+  input.addEventListener('input', function() {
+    error.style.display = 'none';
+    // Strip invalid chars as they type
+    this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  });
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') goToInstance();
+  });
+
+  // Auto-focus the input
+  input.focus();
+</script>
+</body>
+</html>
