@@ -217,14 +217,14 @@
     <img src="/logo.svg" alt="claw-me.com" class="login-logo" />
     <h1 class="login-title">Welcome back</h1>
     <p class="login-subtitle">
-      Enter your instance name to sign in to your dedicated OpenClaw assistant.
+      Enter your instance name or tenant ID to sign in to your dedicated OpenClaw assistant.
     </p>
 
-    <label class="instance-label" for="instance-input">Your instance name</label>
+    <label class="instance-label" for="instance-input">Instance name or Tenant ID</label>
     <div class="instance-row">
       <input
         type="text" id="instance-input" class="instance-input"
-        placeholder="my-instance"
+        placeholder="tenant-319cdd24 or paste your tenant ID"
         autocomplete="off" autocapitalize="none" spellcheck="false"
       />
       <span class="instance-suffix">.claw-me.com</span>
@@ -261,10 +261,19 @@
 
   // Valid subdomain: letters, numbers, hyphens, 1-63 chars
   const VALID = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+  // UUID pattern to detect tenant IDs
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
   function goToInstance() {
-    const name = input.value.trim().toLowerCase();
-    if (!name || !VALID.test(name)) {
+    const raw = input.value.trim().toLowerCase();
+    let subdomain = raw;
+
+    // If user pasted a full tenant UUID, convert to subdomain format
+    if (UUID.test(raw)) {
+      subdomain = 'tenant-' + raw.split('-')[0];
+    }
+
+    if (!subdomain || !VALID.test(subdomain)) {
       error.style.display = 'block';
       input.focus();
       return;
@@ -272,12 +281,12 @@
     error.style.display = 'none';
     btn.disabled = true;
     btn.textContent = 'Redirecting…';
-    window.location.href = 'https://' + name + '.claw-me.com';
+    window.location.href = 'https://' + subdomain + '.claw-me.com';
   }
 
   input.addEventListener('input', function() {
     error.style.display = 'none';
-    // Strip invalid chars as they type
+    // Allow UUID characters (hex + hyphens) as well as subdomain chars
     this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
   });
 
