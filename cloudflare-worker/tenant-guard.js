@@ -2,23 +2,29 @@
  * claw-me.com — Tenant Guard Worker
  *
  * Cloudflare Worker that enforces tenant ownership at the edge.
- * Runs on *.claw-me.com AFTER Cloudflare Access authentication.
+ * Runs on *.claw-me.com — NO dependency on Cloudflare Access.
+ *
+ * Auth method:
+ *   JWT session cookie (claw_session) — issued by claw-auth worker
+ *   for both password+MFA and Google OAuth users.
  *
  * Flow:
- *   1. Extract subdomain from Host header (e.g., tenant-abc123 from tenant-abc123.claw-me.com)
- *   2. Read authenticated email from Cf-Access-Authenticated-User-Email header
- *   3. Look up tenant owner in Supabase: instances → tenant_id → users (role='owner')
- *   4. If email matches owner → pass through to origin
- *   5. If not → return 403
+ *   1. Extract subdomain from Host header
+ *   2. Read JWT from claw_session cookie
+ *   3. Verify JWT signature + expiry
+ *   4. Look up tenant in Supabase: instances → users (role='owner' or 'member')
+ *   5. If email matches → pass through (inject email header for auth-proxy.py)
+ *   6. If not → redirect to login page
  *
- * Environment variables (set in Cloudflare dashboard or wrangler.toml):
+ * Environment variables:
  *   SUPABASE_URL         - e.g., https://xxxx.supabase.co
  *   SUPABASE_SERVICE_KEY - service role key (secret)
  *   BASE_DOMAIN          - claw-me.com
+ *   JWT_SECRET           - HMAC-SHA256 key (same as claw-auth worker)
  *
  * Deploy:
- *   wrangler deploy --name tenant-guard
- *   Then add route: *.claw-me.com/* → tenant-guard
+ *   npx wrangler deploy --name tenant-guard
+ *   Route: *.claw-me.com/*
  */
 
 export default {
@@ -35,26 +41,36 @@ export default {
     // Extract subdomain (e.g., "tenant-abc123" from "tenant-abc123.claw-me.com")
     const subdomain = host.replace(`.${baseDomain}`, '');
 
-    // Skip non-tenant subdomains (admin, litellm, etc.)
-    const SKIP_SUBDOMAINS = ['admin', 'www', 'litellm', 'api'];
+    // Skip non-tenant subdomains (admin, litellm, auth, etc.)
+    const SKIP_SUBDOMAINS = ['admin', 'www', 'litellm', 'api', 'auth'];
     if (SKIP_SUBDOMAINS.includes(subdomain)) {
       return fetch(request);
     }
 
-    // Get the authenticated user email from Cloudflare Access
-    const authedEmail = request.headers.get('Cf-Access-Authenticated-User-Email');
+    // ── Authenticate via JWT session cookie ──
+    let authedEmail = null;
+
+    const jwt = getCookie(request, 'claw_session');
+    if (jwt) {
+      try {
+        const payload = await verifyJwt(env.JWT_SECRET, jwt);
+        if (payload && payload.email) {
+          authedEmail = payload.email.toLowerCase();
+        }
+      } catch (e) {
+        console.error('JWT verification failed:', e.message);
+      }
+    }
+
+    // No valid session — redirect to login
     if (!authedEmail) {
-      // No Cloudflare Access header — this shouldn't happen if Access is configured,
-      // but block it just in case
-      return new Response(forbidden('Authentication required'), {
-        status: 403,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }
-      });
+      const loginUrl = `https://${baseDomain}/login`;
+      return Response.redirect(loginUrl, 302);
     }
 
     // Look up tenant ownership in Supabase
     try {
-      const isOwner = await checkTenantOwnership(
+      const isAuthorized = await checkTenantOwnership(
         env.SUPABASE_URL,
         env.SUPABASE_SERVICE_KEY,
         subdomain,
@@ -62,8 +78,8 @@ export default {
         authedEmail
       );
 
-      if (!isOwner) {
-        return new Response(forbidden('You do not have access to this instance'), {
+      if (!isAuthorized) {
+        return new Response(forbidden('You do not have access to this instance.'), {
           status: 403,
           headers: { 'Content-Type': 'text/html; charset=utf-8' }
         });
@@ -78,9 +94,13 @@ export default {
     }
 
     // Authorized — pass through to origin
-    return fetch(request);
+    // Inject the email header so auth-proxy.py (Layer 2) works seamlessly
+    const modifiedRequest = new Request(request);
+    modifiedRequest.headers.set('Cf-Access-Authenticated-User-Email', authedEmail);
+    return fetch(modifiedRequest);
   }
 };
+
 
 /**
  * Check if the authenticated email is an owner/member of the tenant
@@ -131,6 +151,67 @@ async function checkTenantOwnership(supabaseUrl, serviceKey, subdomain, baseDoma
   return users.length > 0;
 }
 
+
+/**
+ * Extract a cookie value from the request
+ */
+function getCookie(request, name) {
+  const cookieHeader = request.headers.get('Cookie');
+  if (!cookieHeader) return null;
+
+  const cookies = cookieHeader.split(';').map(c => c.trim());
+  for (const cookie of cookies) {
+    const [key, ...valueParts] = cookie.split('=');
+    if (key.trim() === name) {
+      return valueParts.join('=');
+    }
+  }
+  return null;
+}
+
+
+/**
+ * Verify a JWT token (HMAC-SHA256)
+ */
+async function verifyJwt(secret, token) {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  const [headerB64, payloadB64, sigB64] = parts;
+  const signingInput = `${headerB64}.${payloadB64}`;
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['verify']
+  );
+
+  const sigBytes = Uint8Array.from(base64UrlDecode(sigB64), c => c.charCodeAt(0));
+  const valid = await crypto.subtle.verify(
+    'HMAC', key, sigBytes, new TextEncoder().encode(signingInput)
+  );
+
+  if (!valid) return null;
+
+  const payload = JSON.parse(base64UrlDecode(payloadB64));
+
+  // Check expiry
+  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+    return null;
+  }
+
+  return payload;
+}
+
+function base64UrlDecode(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  return atob(str);
+}
+
+
 /**
  * Branded 403 page matching the claw-me.com theme
  */
@@ -173,7 +254,7 @@ function forbidden(message) {
     <div class="icon">🦞</div>
     <h1>Access Denied</h1>
     <p>${message}</p>
-    <a href="https://claw-me.com">Back to claw-me.com</a>
+    <a href="https://claw-me.com/login">Sign in to claw-me.com</a>
   </div>
 </body>
 </html>`;

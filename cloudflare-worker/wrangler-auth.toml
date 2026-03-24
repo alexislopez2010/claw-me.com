@@ -1,0 +1,19 @@
+name = "claw-auth"
+main = "claw-auth.js"
+compatibility_date = "2024-01-01"
+
+routes = [
+  { pattern = "auth.claw-me.com/*", zone_name = "claw-me.com" }
+]
+
+[vars]
+ALLOWED_ORIGIN = "https://claw-me.com"
+BASE_DOMAIN = "claw-me.com"
+
+# Set these as secrets (not in this file):
+#   npx wrangler secret put SUPABASE_URL --config wrangler-auth.toml
+#   npx wrangler secret put SUPABASE_SERVICE_KEY --config wrangler-auth.toml
+#   npx wrangler secret put JWT_SECRET --config wrangler-auth.toml
+#   npx wrangler secret put N8N_MFA_WEBHOOK_URL --config wrangler-auth.toml
+#   npx wrangler secret put GOOGLE_CLIENT_ID --config wrangler-auth.toml
+#   npx wrangler secret put GOOGLE_CLIENT_SECRET --config wrangler-auth.toml
