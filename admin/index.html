@@ -113,9 +113,9 @@
     .plan-badge {
       padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase;
     }
-    .plan-badge.starter { background: rgba(107,114,128,.2); color: var(--muted); }
-    .plan-badge.pro { background: rgba(124,58,237,.2); color: var(--accent2); }
-    .plan-badge.enterprise { background: rgba(234,179,8,.2); color: var(--yellow); }
+    .plan-badge.starter, .plan-badge.standard { background: rgba(107,114,128,.2); color: var(--muted); }
+    .plan-badge.pro, .plan-badge.professional { background: rgba(124,58,237,.2); color: var(--accent2); }
+    .plan-badge.enterprise, .plan-badge.business { background: rgba(234,179,8,.2); color: var(--yellow); }
 
     /* ── Buttons ── */
     .btn {
@@ -240,6 +240,10 @@
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z"/><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg>
         <span>Audit Log</span>
       </a>
+      <a href="#" data-page="billing">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1H0V4zm0 3v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7H0zm3 2h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1z"/></svg>
+        <span>Billing</span>
+      </a>
     </nav>
     <div class="sidebar-bottom">
       <small>claw-me Admin v1.0</small>
@@ -319,6 +323,32 @@
         </div>
       </div>
 
+      <!-- Billing Page -->
+      <div class="page" id="page-billing">
+        <div class="stats-grid" id="billing-stats"></div>
+
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">
+            <h2>Subscriptions</h2>
+            <div class="hactions">
+              <input class="search-input" id="billing-search" placeholder="Search tenants…" />
+            </div>
+          </div>
+          <div id="billing-table-wrap">
+            <div class="loading"><div class="spinner"></div>Loading billing…</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Recent Stripe Events</h2>
+          </div>
+          <div id="stripe-events-wrap">
+            <div class="loading"><div class="spinner"></div>Loading events…</div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -363,7 +393,7 @@
     <div class="form-group"><label>Name</label><input id="nt-name" placeholder="Acme Corp" /></div>
     <div class="form-group"><label>Email</label><input id="nt-email" type="email" placeholder="admin@acme.com" /></div>
     <div class="form-group"><label>Plan</label>
-      <select id="nt-plan"><option value="starter">Starter</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select>
+      <select id="nt-plan"><option value="standard">Standard</option><option value="professional">Professional</option><option value="business">Business</option></select>
     </div>
     <div class="form-group"><label>Country Code</label><input id="nt-country" placeholder="US" maxlength="2" /></div>
     <div class="modal-actions">
@@ -400,7 +430,7 @@ const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 // ──────────────────────────────────────────────
 //  NAVIGATION
 // ──────────────────────────────────────────────
-const pageTitles = { tenants: 'Tenants', instances: 'Instances', usage: 'Usage', audit: 'Audit Log' };
+const pageTitles = { tenants: 'Tenants', instances: 'Instances', usage: 'Usage', audit: 'Audit Log', billing: 'Billing' };
 document.querySelectorAll('nav a').forEach(a => {
   a.addEventListener('click', e => {
     e.preventDefault();
@@ -424,6 +454,7 @@ function loadPage(pg) {
   if (pg === 'instances') loadInstances();
   if (pg === 'usage')     loadUsage();
   if (pg === 'audit')     loadAudit();
+  if (pg === 'billing')   loadBilling();
 }
 
 // ──────────────────────────────────────────────
@@ -486,7 +517,7 @@ function badge(status) {
 function planBadge(plan) {
   return `<span class="plan-badge ${plan}">${plan}</span>`;
 }
-const MRR_PLAN = { starter: 29, pro: 99, enterprise: 499 };
+const MRR_PLAN = { standard: 49, professional: 149, business: 499 };
 
 // ──────────────────────────────────────────────
 //  TENANTS
@@ -745,6 +776,156 @@ function renderAuditTable(rows) {
 document.getElementById('audit-search').addEventListener('input', e => {
   const q = e.target.value.toLowerCase();
   renderAuditTable(allAudit.filter(r => (r.action || '').toLowerCase().includes(q)));
+});
+
+// ──────────────────────────────────────────────
+//  BILLING
+// ──────────────────────────────────────────────
+let allBillingTenants = [];
+
+async function loadBilling() {
+  document.getElementById('billing-table-wrap').innerHTML = '<div class="loading"><div class="spinner"></div>Loading…</div>';
+  document.getElementById('stripe-events-wrap').innerHTML = '<div class="loading"><div class="spinner"></div>Loading…</div>';
+
+  // Fetch tenants with Stripe data
+  const { data: tenants, error } = await db
+    .from('tenants')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) { toast('Failed: ' + error.message, 'error'); return; }
+  allBillingTenants = tenants || [];
+
+  // Stats
+  const active     = tenants.filter(t => t.status === 'active');
+  const withStripe = tenants.filter(t => t.stripe_customer);
+  const mrr        = active.reduce((s, t) => s + (MRR_PLAN[t.plan] || 0), 0);
+  const arr        = mrr * 12;
+
+  const planCounts = {};
+  active.forEach(t => { planCounts[t.plan] = (planCounts[t.plan] || 0) + 1; });
+
+  document.getElementById('billing-stats').innerHTML = `
+    <div class="stat-card green">
+      <div class="label">Monthly Recurring Revenue</div>
+      <div class="value">$${mrr.toLocaleString()}</div>
+      <div class="sub">${active.length} active subscriptions</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="label">Annual Run Rate</div>
+      <div class="value">$${arr.toLocaleString()}</div>
+      <div class="sub">${withStripe.length} Stripe customers</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Plan Breakdown</div>
+      <div class="value" style="font-size:16px">${Object.entries(planCounts).map(([p,c]) => `${p}: ${c}`).join(' · ')}</div>
+      <div class="sub">${tenants.filter(t => t.status === 'cancelled').length} cancelled</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="label">Pending / At Risk</div>
+      <div class="value">${tenants.filter(t => t.status === 'suspended' || t.status === 'pending').length}</div>
+      <div class="sub">${tenants.filter(t => t.status === 'suspended').length} suspended, ${tenants.filter(t => t.status === 'pending').length} pending</div>
+    </div>`;
+
+  renderBillingTable(allBillingTenants);
+
+  // Load Stripe events
+  const { data: events } = await db
+    .from('stripe_events')
+    .select('*')
+    .order('processed_at', { ascending: false })
+    .limit(50);
+
+  renderStripeEvents(events || []);
+}
+
+function renderBillingTable(tenants) {
+  if (!tenants.length) {
+    document.getElementById('billing-table-wrap').innerHTML = '<div class="empty">No tenants found.</div>';
+    return;
+  }
+  const rows = tenants.map(t => `
+    <tr>
+      <td><strong>${t.name}</strong><br><span style="font-size:11px;color:var(--muted)">${t.email}</span></td>
+      <td>${planBadge(t.plan)}</td>
+      <td>${badge(t.status)}</td>
+      <td style="font-size:12px;font-family:monospace;color:var(--muted)">${t.stripe_customer || '—'}</td>
+      <td style="font-size:12px;font-family:monospace;color:var(--muted)">${t.stripe_sub ? t.stripe_sub.slice(0,20) + '…' : '—'}</td>
+      <td style="color:var(--green);font-weight:600">$${MRR_PLAN[t.plan] || 0}/mo</td>
+      <td>
+        ${t.stripe_customer
+          ? `<button class="btn btn-ghost btn-sm" onclick="openPortal('${t.id}')">Manage →</button>`
+          : `<span style="font-size:11px;color:var(--muted)">No Stripe</span>`}
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('billing-table-wrap').innerHTML = `
+    <table>
+      <thead><tr><th>Tenant</th><th>Plan</th><th>Status</th><th>Stripe Customer</th><th>Subscription</th><th>MRR</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderStripeEvents(events) {
+  if (!events.length) {
+    document.getElementById('stripe-events-wrap').innerHTML = '<div class="empty">No Stripe events yet. Events will appear once the webhook handler is deployed.</div>';
+    return;
+  }
+  const rows = events.map(e => `
+    <tr>
+      <td style="font-size:12px;color:var(--muted)">${fmt(e.processed_at)}</td>
+      <td><span class="audit-action">${e.event_type}</span></td>
+      <td style="font-size:12px;font-family:monospace;color:var(--muted)">${e.stripe_event_id?.slice(0,20) || '—'}…</td>
+      <td style="font-size:12px;color:var(--muted)">${e.tenant_id?.slice(0,8) || '—'}</td>
+    </tr>`).join('');
+
+  document.getElementById('stripe-events-wrap').innerHTML = `
+    <table>
+      <thead><tr><th>Time</th><th>Event</th><th>Stripe ID</th><th>Tenant</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// n8n endpoint for creating Stripe Customer Portal sessions
+const N8N_PORTAL_URL = 'https://ielaboratories.app.n8n.cloud/webhook/stripe-portal';
+// TODO: Update the path above to match your actual n8n webhook trigger URL
+
+async function openPortal(tenantId) {
+  try {
+    const resp = await fetch(N8N_PORTAL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId })
+    });
+    const data = await resp.json();
+    if (data.url) {
+      window.open(data.url, '_blank');
+    } else {
+      // Fallback: link to Stripe Dashboard directly
+      const { data: tenant } = await db.from('tenants').select('stripe_customer').eq('id', tenantId).single();
+      if (tenant?.stripe_customer) {
+        window.open(`https://dashboard.stripe.com/customers/${tenant.stripe_customer}`, '_blank');
+      } else {
+        toast('No Stripe customer linked', 'error');
+      }
+    }
+  } catch (err) {
+    console.error('Portal error:', err);
+    // Fallback: link to Stripe Dashboard directly
+    const { data: tenant } = await db.from('tenants').select('stripe_customer').eq('id', tenantId).single();
+    if (tenant?.stripe_customer) {
+      window.open(`https://dashboard.stripe.com/customers/${tenant.stripe_customer}`, '_blank');
+    } else {
+      toast('Could not open billing portal', 'error');
+    }
+  }
+}
+
+document.getElementById('billing-search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  renderBillingTable(allBillingTenants.filter(t =>
+    t.name.toLowerCase().includes(q) || t.email.toLowerCase().includes(q) || (t.stripe_customer || '').includes(q)
+  ));
 });
 
 // ──────────────────────────────────────────────

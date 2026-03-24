@@ -1,1 +1,4 @@
 admin/config.js
+n8n/
+stripe/
+*.DS_Store

@@ -2,18 +2,39 @@
  * claw-me.com — Provision Instance Lambda
  *
  * Triggered by: n8n automation (POST) after Stripe payment confirmed
+ *               Admin portal (POST /provision, /deprovision, /status)
  *               AWS EventBridge on ECS Task State Change
  *
+ * Current state (March 22, 2026):
+ *   ECS_TASK_DEFINITION  = openclaw-task:51  (v13 image, clean — no sed overrides)
+ *   PLAN_RESOURCES       = 2048 CPU / 4096 memory for all plans
+ *   Docker image          = :v13 with 4-channel support (Telegram, WhatsApp, Discord, Slack)
+ *
  * Environment variables:
- *   ECS_TASK_DEFINITION  = openclaw-task:8
+ *   ECS_TASK_DEFINITION  = openclaw-task:51 (current revision)
  *   SUPABASE_URL         = https://xxxx.supabase.co
  *   SUPABASE_SERVICE_KEY = service role key
- *   SUBNET_IDS           = subnet-aaa,subnet-bbb
+ *   SUBNET_IDS           = subnet-aaa,subnet-bbb  (MUST use comma separator)
  *   SECURITY_GROUP_ID    = sg-xxxxxxxx
  *   VPC_ID               = vpc-xxxxxxxx
  *   ALB_LISTENER_ARN     = arn:aws:elasticloadbalancing:...
  *   BASE_DOMAIN          = claw-me.com
- *   HOSTED_ZONE_ID       = placeholder
+ *   LITELLM_URL          = https://litellm.claw-me.com     (public — used by Lambda for /key/generate)
+ *   LITELLM_INTERNAL_URL = http://litellm.claw-me.local:4000 (VPC-internal — passed to containers as OPENAI_API_BASE)
+ *   LITELLM_MASTER_KEY   = sk-litellm-master-...
+ *   OPENAI_API_KEY       = sk-...   (real key — fallback if LiteLLM not available)
+ *
+ * LiteLLM metering flow:
+ *   1. Lambda calls LITELLM_URL/key/generate to create a virtual key per tenant
+ *   2. Virtual key + LITELLM_INTERNAL_URL are injected into the ECS task as env vars
+ *   3. OpenClaw container routes LLM requests through LiteLLM proxy
+ *   4. LiteLLM logs spend per virtual key to Supabase litellm_spendlogs table
+ *
+ * IMPORTANT: Container-to-container traffic MUST use LITELLM_INTERNAL_URL (VPC-internal).
+ * The public domain (litellm.claw-me.com) is proxied by Cloudflare which blocks non-browser traffic.
+ *
+ * IMPORTANT: PLAN_RESOURCES container overrides take precedence over task def defaults.
+ * Both must be aligned — if task def says 4096 but Lambda sends 1024, the container gets 1024.
  */
 
 const { resolveRegion } = require('./regions');
@@ -37,6 +58,7 @@ const {
   ElasticLoadBalancingV2Client,
   CreateTargetGroupCommand,
   DeleteTargetGroupCommand,
+  DescribeTargetGroupsCommand,
   CreateRuleCommand,
   DeleteRuleCommand,
   DescribeRulesCommand,
@@ -60,8 +82,8 @@ function getEcsClient(region) {
 
 // ── Plan resource mapping ─────────────────────────────────────
 const PLAN_RESOURCES = {
-  starter:    { cpu: '512',  memory: '1024' },
-  pro:        { cpu: '1024', memory: '2048' },
+  starter:    { cpu: '2048', memory: '4096' },  // 4GB — WhatsApp Web bridge + headless Chromium needs headroom for crypto ops
+  pro:        { cpu: '2048', memory: '4096' },
   enterprise: { cpu: '2048', memory: '4096' },
 };
 
@@ -172,12 +194,7 @@ async function provision(tenantId, plan = 'starter', countryCode = null) {
     console.log(`Created target group: ${tgArn}`);
   } catch (e) {
     if (e.name === 'DuplicateTargetGroupNameException') {
-      // Target group already exists — look it up
-      const { TargetGroups } = await alb.send(new DescribeRulesCommand({ ListenerArn: process.env.ALB_LISTENER_ARN }).constructor === DescribeRulesCommand
-        ? new DescribeRulesCommand({ ListenerArn: process.env.ALB_LISTENER_ARN })
-        : new DescribeRulesCommand({ ListenerArn: process.env.ALB_LISTENER_ARN }));
-      // Fallback: find existing TG by name via describe-target-groups
-      const { ElasticLoadBalancingV2Client: ELB2, DescribeTargetGroupsCommand } = require('@aws-sdk/client-elastic-load-balancing-v2');
+      // Target group already exists — look it up by name
       const { TargetGroups: tgs } = await alb.send(new DescribeTargetGroupsCommand({ Names: [tgName] }));
       tgArn = tgs[0].TargetGroupArn;
       console.log(`Reusing existing target group: ${tgArn}`);
@@ -206,7 +223,33 @@ async function provision(tenantId, plan = 'starter', countryCode = null) {
     console.warn('Listener rule creation failed (may already exist):', e.message);
   }
 
-  // 4. Run ECS Fargate task
+  // 4. Create LiteLLM virtual key for this tenant
+  let litellmVirtualKey = '';
+  if (process.env.LITELLM_URL && process.env.LITELLM_MASTER_KEY) {
+    try {
+      const litellmRes = await fetch(`${process.env.LITELLM_URL}/key/generate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.LITELLM_MASTER_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          key_alias:   `tenant-${tenantId}`,
+          metadata:    { tenant_id: tenantId, plan },
+          models:      ['gpt-4.1-mini', 'gpt-4.1', 'openai/gpt-4.1-mini', 'openai/gpt-4.1'],
+          max_budget:  plan === 'starter' ? 10 : plan === 'pro' ? 50 : null,
+          budget_duration: 'monthly',
+        }),
+      });
+      const litellmData = await litellmRes.json();
+      litellmVirtualKey = litellmData.key || '';
+      console.log(`Created LiteLLM virtual key for tenant ${tenantId}`);
+    } catch (e) {
+      console.warn('LiteLLM key creation failed (will use direct API key):', e.message, e.cause ? JSON.stringify(e.cause) : '');
+    }
+  }
+
+  // 5. Run ECS Fargate task
   const runResult = await getEcsClient(region).send(new RunTaskCommand({
     cluster:        cluster,
     taskDefinition: process.env.ECS_TASK_DEFINITION,
@@ -229,6 +272,12 @@ async function provision(tenantId, plan = 'starter', countryCode = null) {
           { name: 'SUPABASE_SERVICE_KEY', value: process.env.SUPABASE_SERVICE_KEY },
           { name: 'TARGET_GROUP_ARN',     value: tgArn || '' },
           { name: 'HTTPS_ENDPOINT',       value: httpsEndpoint },
+          // LiteLLM proxy — use VPC-internal URL (LITELLM_INTERNAL_URL) to bypass Cloudflare.
+          // Falls back to LITELLM_URL (public) if internal URL not set.
+          // NEVER use the public domain for container-to-container traffic — Cloudflare returns 403.
+          { name: 'OPENAI_API_BASE',      value: litellmVirtualKey ? (process.env.LITELLM_INTERNAL_URL || process.env.LITELLM_URL) : '' },
+          { name: 'OPENAI_API_KEY',       value: litellmVirtualKey || process.env.OPENAI_API_KEY || '' },
+          { name: 'ANTHROPIC_API_KEY',    value: litellmVirtualKey ? '' : (process.env.ANTHROPIC_API_KEY || '') },
         ],
       }],
     },
@@ -239,6 +288,7 @@ async function provision(tenantId, plan = 'starter', countryCode = null) {
         assignPublicIp: 'ENABLED',
       },
     },
+    enableExecuteCommand: true,
     tags: [
       { key: 'tenantId', value: tenantId },
       { key: 'plan',     value: plan },
