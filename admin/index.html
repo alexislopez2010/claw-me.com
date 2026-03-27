@@ -420,9 +420,11 @@
 // ──────────────────────────────────────────────
 //  CONFIG
 // ──────────────────────────────────────────────
-const SUPABASE_URL = 'https://xfklynglppislmdhjtut.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_yk-fRsmSyHwE5sE1L1wzmw_qw-QHghl';
-const API_GW       = 'https://1ennrvc596.execute-api.us-east-1.amazonaws.com/prod';
+const SUPABASE_URL  = 'https://xfklynglppislmdhjtut.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_yk-fRsmSyHwE5sE1L1wzmw_qw-QHghl';
+const API_GW        = 'https://1ennrvc596.execute-api.us-east-1.amazonaws.com/prod';
+const LITELLM_URL   = 'https://litellm.claw-me.com';
+const LITELLM_KEY   = 'sk-litellm-master-clawme-2026x03x21';
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -709,36 +711,81 @@ function copyField(id) {
 }
 
 // ──────────────────────────────────────────────
-//  USAGE
+//  USAGE  (sourced live from LiteLLM virtual keys)
 // ──────────────────────────────────────────────
 async function loadUsage() {
   document.getElementById('usage-table-wrap').innerHTML = '<div class="loading"><div class="spinner"></div>Loading…</div>';
-  const { data, error } = await db.from('usage').select('*, tenants(name)').order('period_start', { ascending: false }).limit(100);
-  if (error) { toast('Failed: ' + error.message, 'error'); return; }
-  const usage = data || [];
-  if (!usage.length) { document.getElementById('usage-table-wrap').innerHTML = '<div class="empty">No usage data yet.</div>'; return; }
 
-  const rows = usage.map(u => {
-    const pct = Math.min(100, Math.round(((u.api_calls || 0) / 10000) * 100));
-    const cls = pct > 80 ? 'high' : pct > 50 ? 'med' : '';
-    return `
-    <tr>
-      <td><strong>${u.tenants?.name || u.tenant_id?.slice(0,8)}</strong></td>
-      <td>${fmt(u.period_start)}</td>
-      <td>${(u.api_calls || 0).toLocaleString()}</td>
-      <td>
-        <div class="usage-bar-wrap">
-          <div class="usage-bar"><div class="usage-bar-fill ${cls}" style="width:${pct}%"></div></div>
-          <span style="font-size:12px;color:var(--muted);width:36px;text-align:right">${pct}%</span>
-        </div>
-      </td>
-      <td>${(u.storage_gb || 0).toFixed(2)} GB</td>
-      <td style="color:var(--green)">$${(u.cost_usd || 0).toFixed(2)}</td>
-    </tr>`}).join('');
+  // 1. Fetch all virtual key hashes from LiteLLM, then resolve each to full info
+  let keyInfos = [];
+  try {
+    const listRes  = await fetch(`${LITELLM_URL}/key/list`, { headers: { 'Authorization': `Bearer ${LITELLM_KEY}` } });
+    const listJson = await listRes.json();
+    const hashes   = listJson.keys || [];
+
+    // Fetch full info for all keys in parallel
+    const infoResults = await Promise.all(hashes.map(h =>
+      fetch(`${LITELLM_URL}/key/info?key=${h}`, { headers: { 'Authorization': `Bearer ${LITELLM_KEY}` } })
+        .then(r => r.json())
+        .then(j => j?.info || null)
+        .catch(() => null)
+    ));
+    keyInfos = infoResults.filter(Boolean);
+  } catch (e) {
+    document.getElementById('usage-table-wrap').innerHTML = '<div class="empty">Could not reach LiteLLM API.</div>';
+    return;
+  }
+
+  // 2. Filter to tenant keys (alias = "tenant-{uuid}") and skip passthrough/internal keys
+  const tenantKeys = keyInfos.filter(k =>
+    k.key_alias &&
+    /^tenant-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(k.key_alias)
+  );
+
+  if (!tenantKeys.length) {
+    document.getElementById('usage-table-wrap').innerHTML = '<div class="empty">No tenant usage data yet.</div>';
+    return;
+  }
+
+  // 3. Look up tenant names from Supabase for the UUIDs we have
+  const tenantIds = tenantKeys.map(k => k.key_alias.replace('tenant-', ''));
+  const { data: tenantRows } = await db.from('tenants').select('id,name,email,plan').in('id', tenantIds);
+  const tenantMap = Object.fromEntries((tenantRows || []).map(t => [t.id, t]));
+
+  // 4. Render — sort by spend descending
+  tenantKeys.sort((a, b) => (b.spend || 0) - (a.spend || 0));
+
+  const rows = tenantKeys.map(k => {
+    const tenantId  = k.key_alias.replace('tenant-', '');
+    const tenant    = tenantMap[tenantId] || {};
+    const name      = tenant.name || tenant.email || tenantId.slice(0, 8);
+    const plan      = tenant.plan || k.metadata?.plan || '—';
+    const spend     = k.spend || 0;
+    const budget    = k.max_budget;
+    const pct       = budget ? Math.min(100, Math.round((spend / budget) * 100)) : null;
+    const cls       = pct === null ? '' : pct > 80 ? 'high' : pct > 50 ? 'med' : '';
+    const barHtml   = pct !== null
+      ? `<div class="usage-bar-wrap">
+           <div class="usage-bar"><div class="usage-bar-fill ${cls}" style="width:${pct}%"></div></div>
+           <span style="font-size:12px;color:var(--muted);width:36px;text-align:right">${pct}%</span>
+         </div>`
+      : '<span style="font-size:12px;color:var(--muted)">No limit</span>';
+    const budgetStr = budget != null ? `$${budget.toFixed(2)}` : '—';
+    const resetDate = k.budget_reset_at ? fmt(k.budget_reset_at) : (k.budget_duration === 'monthly' ? 'Monthly' : '—');
+
+    return `<tr>
+      <td><strong>${name}</strong><br><span style="font-size:11px;color:var(--muted)">${tenantId.slice(0,8)}</span></td>
+      <td><span style="font-size:12px">${plan}</span></td>
+      <td style="color:var(--green);font-weight:600">$${spend.toFixed(4)}</td>
+      <td>${budgetStr}</td>
+      <td>${barHtml}</td>
+      <td style="font-size:12px;color:var(--muted)">${resetDate}</td>
+    </tr>`;
+  }).join('');
 
   document.getElementById('usage-table-wrap').innerHTML = `
     <table>
-      <thead><tr><th>Tenant</th><th>Period</th><th>API Calls</th><th>Usage</th><th>Storage</th><th>Cost</th></tr></thead>
+      <thead><tr><th>Tenant</th><th>Plan</th><th>Spend (USD)</th><th>Budget</th><th>Budget Used</th><th>Resets</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
