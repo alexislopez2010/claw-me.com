@@ -3,17 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to Claw-Me!</title>
+  <title>You're in — Claw-Me</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #0d0f14;
-      --surface:  #13161e;
-      --border:   #252a38;
-      --accent:   #ff4c29;
-      --accent2:  #ff7a52;
-      --text:     #e8eaf0;
-      --muted:    #8891a8;
+      --bg:       #070e1b;
+      --surface:  #0d1829;
+      --border:   #1c2e47;
+      --accent:   #0ea5e9;
+      --accent2:  #38bdf8;
+      --text:     #e2e8f2;
+      --muted:    #7c8faa;
     }
     html, body {
       height: 100%;
@@ -38,8 +41,8 @@
       content: '';
       position: fixed; inset: 0; z-index: 0;
       background:
-        radial-gradient(ellipse 70% 55% at 50% 0%, rgba(255,76,41,0.13) 0%, transparent 65%),
-        radial-gradient(ellipse 40% 30% at 50% 100%, rgba(255,76,41,0.07) 0%, transparent 60%);
+        radial-gradient(ellipse 70% 55% at 50% 0%, rgba(14,165,233,0.11) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 30% at 50% 100%, rgba(14,165,233,0.05) 0%, transparent 60%);
       pointer-events: none;
     }
     .page {
@@ -77,6 +80,7 @@
     }
     h1 {
       font-size: 2.2rem; font-weight: 800; margin-bottom: 12px;
+      font-family: 'Outfit', 'Inter', sans-serif;
       background: linear-gradient(135deg, var(--text) 0%, var(--accent2) 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
@@ -111,14 +115,14 @@
     }
     .btn-login:hover {
       background: var(--accent2);
-      box-shadow: 0 4px 20px rgba(255,76,41,0.35);
+      box-shadow: 0 4px 20px rgba(14,165,233,0.35);
     }
     .note {
       margin-top: 24px; font-size: 0.82rem; color: var(--muted); max-width: 400px;
     }
     .spinner {
       display: inline-block; width: 18px; height: 18px;
-      border: 2px solid rgba(255,76,41,0.3); border-top-color: var(--accent);
+      border: 2px solid rgba(14,165,233,0.3); border-top-color: var(--accent);
       border-radius: 50%; animation: spin 0.8s linear infinite;
       margin-right: 6px; vertical-align: middle;
     }
@@ -136,10 +140,10 @@
 
 <main class="page">
   <div class="success-icon">🦞</div>
-  <h1>Welcome aboard!</h1>
+  <h1>You're in.</h1>
   <p class="subtitle">
-    Your payment was successful and your Claw-Me AI agent instance is being provisioned right now.
-    This usually takes about 60 seconds.
+    Payment confirmed. Your dedicated AI agent is being set up right now —
+    this usually takes about 60 seconds.
   </p>
 
   <div class="steps">
@@ -166,11 +170,11 @@
     </div>
   </div>
 
-  <a href="/login/" class="btn-login">🦞 Go to Login</a>
+  <a href="/login/" class="btn-login">Sign in to your instance →</a>
 
   <p class="note">
-    If you don't receive an email within a few minutes, check your spam folder or
-    contact <a href="mailto:hello@claw-me.com" style="color:var(--accent)">hello@claw-me.com</a>.
+    Didn't receive an email within a few minutes? Check your spam folder or reach out at
+    <a href="mailto:hello@claw-me.com" style="color:var(--accent)">hello@claw-me.com</a>.
   </p>
 </main>
 

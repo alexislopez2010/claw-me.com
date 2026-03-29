@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>claw-me.com — Coming Soon</title>
-  <meta name="description" content="OpenClaw as a Service is landing soon. Your personal AI in the cloud — always on, always learning, always clawing." />
+  <title>Claw-Me — Your own AI employee, dedicated and always on</title>
+  <meta name="description" content="Stop spending your day on work that should be automated. Claw-Me gives your business a private, dedicated AI agent — cloud-hosted, always on, and ready to handle the tasks eating your time." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #0d0f14;
-      --surface:  #13161e;
-      --border:   #252a38;
-      --accent:   #ff4c29;
-      --accent2:  #ff7a52;
-      --text:     #e8eaf0;
-      --muted:    #8891a8;
+      --bg:       #070e1b;
+      --surface:  #0d1829;
+      --border:   #1c2e47;
+      --accent:   #0ea5e9;
+      --accent2:  #38bdf8;
+      --text:     #e2e8f2;
+      --muted:    #7c8faa;
     }
     html, body {
       height: 100%;
@@ -47,8 +50,8 @@
       content: '';
       position: fixed; inset: 0; z-index: 0;
       background:
-        radial-gradient(ellipse 70% 55% at 50% 0%,   rgba(255,76,41,0.13) 0%, transparent 65%),
-        radial-gradient(ellipse 40% 30% at 50% 100%, rgba(255,76,41,0.07) 0%, transparent 60%);
+        radial-gradient(ellipse 70% 55% at 50% 0%,   rgba(14,165,233,0.11) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 30% at 50% 100%, rgba(14,165,233,0.05) 0%, transparent 60%);
       pointer-events: none;
     }
 
@@ -67,7 +70,7 @@
       position: fixed; top: 0; left: 0; right: 0; z-index: 10;
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 32px; height: 56px;
-      background: rgba(13,15,20,0.7); backdrop-filter: blur(10px);
+      background: rgba(7,14,27,0.7); backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border);
     }
     .logo {
@@ -94,13 +97,13 @@
     }
     .btn-login:hover {
       background: var(--accent); color: #fff;
-      box-shadow: 0 4px 14px rgba(255,76,41,0.3);
+      box-shadow: 0 4px 14px rgba(14,165,233,0.3);
     }
 
     /* ── Badge ── */
     .badge {
       display: inline-flex; align-items: center; gap: 7px;
-      background: rgba(255,76,41,0.1); border: 1px solid rgba(255,76,41,0.3);
+      background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.3);
       padding: 5px 15px; border-radius: 999px;
       font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--accent2);
@@ -137,7 +140,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .mascot-glow {
       position: absolute; inset: -30px;
-      background: radial-gradient(circle, rgba(255,76,41,0.2) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(14,165,233,0.18) 0%, transparent 70%);
       border-radius: 50%;
       animation: pulse 3s ease-in-out infinite;
     }
@@ -149,6 +152,7 @@
     /* ── Headline ── */
     h1 {
       font-size: clamp(2.4rem, 7vw, 5rem);
+      font-family: 'Outfit', 'Inter', sans-serif;
       font-weight: 900; letter-spacing: -0.04em;
       line-height: 1.05; margin-bottom: 20px;
     }
@@ -212,7 +216,7 @@
     }
     .btn-submit:hover {
       background: var(--accent2); transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(255,76,41,0.35);
+      box-shadow: 0 6px 20px rgba(14,165,233,0.35);
     }
     .form-note {
       font-size: 0.75rem; color: var(--muted); margin-top: 10px;
@@ -220,7 +224,7 @@
     /* Success state */
     .success-msg {
       display: none; align-items: center; justify-content: center; gap: 8px;
-      background: rgba(255,76,41,0.1); border: 1px solid rgba(255,76,41,0.3);
+      background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.3);
       border-radius: 10px; padding: 14px 20px;
       font-size: 0.92rem; font-weight: 600; color: var(--accent2);
     }
@@ -250,7 +254,7 @@
     .btn-early-access:hover {
       background: var(--accent); color: #fff;
       transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(255,76,41,0.35);
+      box-shadow: 0 6px 20px rgba(14,165,233,0.35);
     }
 
     /* ── Feature pills ── */
@@ -286,7 +290,7 @@
       position: fixed; bottom: 0; left: 0; right: 0;
       text-align: center; padding: 14px;
       font-size: 0.78rem; color: var(--muted);
-      background: rgba(13,15,20,0.6); backdrop-filter: blur(8px);
+      background: rgba(7,14,27,0.6); backdrop-filter: blur(8px);
       border-top: 1px solid var(--border);
     }
     .page-footer a { color: var(--muted); text-decoration: none; }
@@ -361,7 +365,7 @@
       text-decoration: none;
     }
     .price-btn-primary { background: var(--accent); color: #fff; }
-    .price-btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(255,76,41,0.3); }
+    .price-btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(14,165,233,0.3); }
     .price-btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
     .price-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -479,7 +483,7 @@
       transition: box-shadow 0.2s, opacity 0.2s;
     }
     .btn-modal-submit:hover:not(:disabled) {
-      box-shadow: 0 6px 22px rgba(255,76,41,0.4);
+      box-shadow: 0 6px 22px rgba(14,165,233,0.4);
     }
     .btn-modal-submit:disabled { opacity: 0.55; cursor: not-allowed; }
     .modal-divider {
@@ -525,7 +529,7 @@
   <!-- Badge -->
   <div class="badge">
     <span class="badge-dot"></span>
-    OpenClaw as a Service — Launching Soon
+    Dedicated AI automation — Launching soon
   </div>
 
   <!-- Mascot -->
@@ -534,60 +538,60 @@
     <div class="mascot-ring"></div>
     <svg viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg" width="180" height="180" style="position:relative;z-index:1;">
       <!-- Body -->
-      <ellipse cx="90" cy="104" rx="36" ry="40" fill="#1e0d09" stroke="#ff4c29" stroke-width="2"/>
+      <ellipse cx="90" cy="104" rx="36" ry="40" fill="#0a1628" stroke="#0ea5e9" stroke-width="2"/>
       <!-- Shell segments -->
-      <ellipse cx="90" cy="90"  rx="32" ry="26" fill="#2a1008" stroke="#ff4c29" stroke-width="1.2" opacity="0.8"/>
-      <ellipse cx="90" cy="110" rx="33" ry="19" fill="#240e07" stroke="#ff4c29" stroke-width="1.2" opacity="0.7"/>
-      <ellipse cx="90" cy="128" rx="29" ry="15" fill="#1e0d09" stroke="#ff4c29" stroke-width="1.2" opacity="0.6"/>
+      <ellipse cx="90" cy="90"  rx="32" ry="26" fill="#0f1e38" stroke="#0ea5e9" stroke-width="1.2" opacity="0.8"/>
+      <ellipse cx="90" cy="110" rx="33" ry="19" fill="#0d1a32" stroke="#0ea5e9" stroke-width="1.2" opacity="0.7"/>
+      <ellipse cx="90" cy="128" rx="29" ry="15" fill="#0a1628" stroke="#0ea5e9" stroke-width="1.2" opacity="0.6"/>
       <!-- Head -->
-      <ellipse cx="90" cy="68" rx="25" ry="21" fill="#2a1008" stroke="#ff4c29" stroke-width="2"/>
+      <ellipse cx="90" cy="68" rx="25" ry="21" fill="#0f1e38" stroke="#0ea5e9" stroke-width="2"/>
       <!-- Eyes -->
-      <circle cx="80" cy="63" r="6.5" fill="#ff4c29" opacity="0.9"/>
-      <circle cx="100" cy="63" r="6.5" fill="#ff4c29" opacity="0.9"/>
+      <circle cx="80" cy="63" r="6.5" fill="#0ea5e9" opacity="0.9"/>
+      <circle cx="100" cy="63" r="6.5" fill="#0ea5e9" opacity="0.9"/>
       <circle cx="81" cy="62" r="3" fill="#fff"/>
       <circle cx="101" cy="62" r="3" fill="#fff"/>
       <circle cx="82" cy="61" r="1.4" fill="#111"/>
       <circle cx="102" cy="61" r="1.4" fill="#111"/>
       <!-- Antennae -->
-      <line x1="80" y1="52" x2="62" y2="30" stroke="#ff4c29" stroke-width="1.5" stroke-linecap="round"/>
-      <line x1="100" y1="52" x2="118" y2="30" stroke="#ff4c29" stroke-width="1.5" stroke-linecap="round"/>
-      <circle cx="62" cy="30" r="2.5" fill="#ff7a52"/>
-      <circle cx="118" cy="30" r="2.5" fill="#ff7a52"/>
+      <line x1="80" y1="52" x2="62" y2="30" stroke="#0ea5e9" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="100" y1="52" x2="118" y2="30" stroke="#0ea5e9" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="62" cy="30" r="2.5" fill="#38bdf8"/>
+      <circle cx="118" cy="30" r="2.5" fill="#38bdf8"/>
       <!-- Left claw -->
-      <path d="M 66 104 Q 48 104 42 96" stroke="#ff4c29" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <ellipse cx="36" cy="91" rx="14" ry="9" fill="#2a1008" stroke="#ff4c29" stroke-width="1.5" transform="rotate(-30 36 91)"/>
-      <path d="M 27 83 Q 18 73 22 67 Q 26 61 33 66" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
-      <path d="M 28 87 Q 16 90 15 98 Q 15 106 25 104" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
+      <path d="M 66 104 Q 48 104 42 96" stroke="#0ea5e9" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="36" cy="91" rx="14" ry="9" fill="#0f1e38" stroke="#0ea5e9" stroke-width="1.5" transform="rotate(-30 36 91)"/>
+      <path d="M 27 83 Q 18 73 22 67 Q 26 61 33 66" stroke="#0ea5e9" stroke-width="2" fill="#0a1628" stroke-linejoin="round"/>
+      <path d="M 28 87 Q 16 90 15 98 Q 15 106 25 104" stroke="#0ea5e9" stroke-width="2" fill="#0a1628" stroke-linejoin="round"/>
       <!-- Right claw -->
-      <path d="M 114 104 Q 132 104 138 96" stroke="#ff4c29" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <ellipse cx="144" cy="91" rx="14" ry="9" fill="#2a1008" stroke="#ff4c29" stroke-width="1.5" transform="rotate(30 144 91)"/>
-      <path d="M 153 83 Q 162 73 158 67 Q 154 61 147 66" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
-      <path d="M 152 87 Q 164 90 165 98 Q 165 106 155 104" stroke="#ff4c29" stroke-width="2" fill="#1e0d09" stroke-linejoin="round"/>
+      <path d="M 114 104 Q 132 104 138 96" stroke="#0ea5e9" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="144" cy="91" rx="14" ry="9" fill="#0f1e38" stroke="#0ea5e9" stroke-width="1.5" transform="rotate(30 144 91)"/>
+      <path d="M 153 83 Q 162 73 158 67 Q 154 61 147 66" stroke="#0ea5e9" stroke-width="2" fill="#0a1628" stroke-linejoin="round"/>
+      <path d="M 152 87 Q 164 90 165 98 Q 165 106 155 104" stroke="#0ea5e9" stroke-width="2" fill="#0a1628" stroke-linejoin="round"/>
       <!-- Walking legs left -->
-      <line x1="64"  y1="115" x2="46" y2="130" stroke="#ff4c29" stroke-width="1.8" stroke-linecap="round"/>
-      <line x1="62"  y1="124" x2="44" y2="140" stroke="#ff4c29" stroke-width="1.6" stroke-linecap="round"/>
-      <line x1="63"  y1="134" x2="48" y2="150" stroke="#ff4c29" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="64"  y1="115" x2="46" y2="130" stroke="#0ea5e9" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="62"  y1="124" x2="44" y2="140" stroke="#0ea5e9" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="63"  y1="134" x2="48" y2="150" stroke="#0ea5e9" stroke-width="1.4" stroke-linecap="round"/>
       <!-- Walking legs right -->
-      <line x1="116" y1="115" x2="134" y2="130" stroke="#ff4c29" stroke-width="1.8" stroke-linecap="round"/>
-      <line x1="118" y1="124" x2="136" y2="140" stroke="#ff4c29" stroke-width="1.6" stroke-linecap="round"/>
-      <line x1="117" y1="134" x2="132" y2="150" stroke="#ff4c29" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="116" y1="115" x2="134" y2="130" stroke="#0ea5e9" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="118" y1="124" x2="136" y2="140" stroke="#0ea5e9" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="117" y1="134" x2="132" y2="150" stroke="#0ea5e9" stroke-width="1.4" stroke-linecap="round"/>
       <!-- Tail -->
-      <ellipse cx="90" cy="148" rx="15" ry="7" fill="#2a1008" stroke="#ff4c29" stroke-width="1.2"/>
-      <ellipse cx="90" cy="157" rx="11" ry="5.5" fill="#1e0d09" stroke="#ff4c29" stroke-width="1.2"/>
+      <ellipse cx="90" cy="148" rx="15" ry="7" fill="#0f1e38" stroke="#0ea5e9" stroke-width="1.2"/>
+      <ellipse cx="90" cy="157" rx="11" ry="5.5" fill="#0a1628" stroke="#0ea5e9" stroke-width="1.2"/>
       <!-- Cloud + wifi on body -->
-      <text x="90" y="106" text-anchor="middle" font-family="system-ui" font-size="14" fill="#ff4c29">☁️</text>
+      <text x="90" y="106" text-anchor="middle" font-family="system-ui" font-size="14" fill="#0ea5e9">☁️</text>
     </svg>
   </div>
 
   <!-- Headline -->
   <h1>
-    Something big<br/>
-    <span class="line2">is clawing its way here.</span>
+    Your own AI employee<br/>
+    <span class="line2">is almost here.</span>
   </h1>
   <p class="subtitle">
-    OpenClaw as a Service is almost ready to deploy. Your own dedicated AI
-    assistant — personalized, cloud-hosted, always on. Be first in line
-    when the claws drop.
+    Stop spending your day on work that should be automated. Claw-Me gives
+    your business a private, dedicated AI agent — cloud-hosted, always on,
+    and ready to handle the tasks eating your time.
   </p>
 
   <!-- Countdown -->
@@ -615,7 +619,7 @@
 
   <!-- Email form -->
   <div class="form-wrap">
-    <label class="form-label" for="email-input">Get early access + launch-day deal</label>
+    <label class="form-label" for="email-input">Get early access — subscribers save 30% at launch</label>
     <div class="form-row" id="form-row">
       <input
         type="email" id="email-input" class="form-input"
@@ -624,9 +628,9 @@
       <button class="btn-submit" onclick="handleSubmit()">🦞 Notify Me</button>
     </div>
     <div class="success-msg" id="success-msg">
-      🦞 You're on the list! We'll claw you when we launch.
+      🦞 You're on the list. We'll be in touch before we launch.
     </div>
-    <p class="form-note">No spam. Unsubscribe any time. Early subscribers get 30% off launch pricing.</p>
+    <p class="form-note">No spam. Unsubscribe any time.</p>
   </div>
 
   <!-- Early access login -->
@@ -641,19 +645,19 @@
 
   <!-- Feature pills -->
   <div class="pills">
-    <div class="pill"><span class="icon">☁️</span> Dedicated cloud instance</div>
-    <div class="pill"><span class="icon">🧠</span> Persistent AI memory</div>
-    <div class="pill"><span class="icon">⚡</span> Autonomous 24/7 agents</div>
-    <div class="pill"><span class="icon">🔌</span> 50+ integrations</div>
-    <div class="pill"><span class="icon">🛡️</span> Enterprise-grade security</div>
-    <div class="pill"><span class="icon">🚀</span> Zero setup required</div>
+    <div class="pill"><span class="icon">☁️</span> Your own private instance</div>
+    <div class="pill"><span class="icon">🧠</span> Learns your workflows</div>
+    <div class="pill"><span class="icon">⚡</span> Works while you sleep</div>
+    <div class="pill"><span class="icon">🔌</span> Connects to the tools you already use</div>
+    <div class="pill"><span class="icon">🛡️</span> Your data stays private</div>
+    <div class="pill"><span class="icon">🚀</span> Up and running in minutes</div>
   </div>
 
   <!-- Pricing -->
   <section class="pricing-section" id="pricing">
     <div class="pricing-header">
       <h2>Simple, transparent pricing</h2>
-      <p>Start free for 14 days. No credit card required.</p>
+      <p>14-day free trial. No credit card required. Cancel any time.</p>
     </div>
 
     <div class="pricing-toggle">
@@ -666,7 +670,7 @@
       <!-- Standard -->
       <div class="price-card">
         <h3>Standard</h3>
-        <p class="price-desc">For individuals getting started with AI agents</p>
+        <p class="price-desc">For founders done doing it all themselves</p>
         <div class="price-amount" id="price-standard">$49<span>/mo</span></div>
         <div class="price-annual-note" id="note-standard"></div>
         <ul class="price-features">
@@ -683,7 +687,7 @@
       <div class="price-card popular">
         <div class="popular-tag">Most Popular</div>
         <h3>Professional</h3>
-        <p class="price-desc">For teams that need more power and integrations</p>
+        <p class="price-desc">For growing teams ready to automate operations</p>
         <div class="price-amount" id="price-professional">$149<span>/mo</span></div>
         <div class="price-annual-note" id="note-professional"></div>
         <ul class="price-features">
@@ -700,7 +704,7 @@
       <!-- Business -->
       <div class="price-card">
         <h3>Business</h3>
-        <p class="price-desc">For organizations needing unlimited power</p>
+        <p class="price-desc">For businesses running AI across the whole team</p>
         <div class="price-amount" id="price-business">$499<span>/mo</span></div>
         <div class="price-annual-note" id="note-business"></div>
         <ul class="price-features">
@@ -720,7 +724,7 @@
   <div class="social-row">
     <span class="social-label">Spread the claw:</span>
     <a class="social-btn"
-       href="https://twitter.com/intent/tweet?text=OpenClaw+as+a+Service+is+coming+%F0%9F%A6%9E+Get+your+own+personal+AI+in+the+cloud+%E2%80%94+check+it+out+at+claw-me.com"
+       href="https://twitter.com/intent/tweet?text=Your+own+AI+employee%2C+dedicated+and+always+on+%F0%9F%A6%9E+Claw-Me+is+almost+here+%E2%80%94+claw-me.com"
        target="_blank" rel="noopener">
       𝕏 Share on X
     </a>
