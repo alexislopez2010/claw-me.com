@@ -1,7 +1,7 @@
 # claw-me.com — Architecture & Deployment Guide
 
 > **Status:** Production-ready infrastructure deployed in `us-east-1`.
-> Last updated: March 22, 2026 — v15 image, task def :53, dual-layer tenant security (Cloudflare Worker + container auth proxy), Cloudflare Access (Google OAuth), tenant login gateway
+> Last updated: March 25, 2026 — v15 image + S3 wrapper entrypoint (task def :55), LiteLLM metering working end-to-end (virtual keys via public URL, VPC-internal traffic), direct-key fallback fixed (no paste-token dependency), dual-layer tenant security, claw-auth Worker, tokenized dashboard login flow
 
 ---
 
@@ -35,19 +35,20 @@ Customer Browser
       │
       ▼
 claw-me.com/login/  (Tenant Login Gateway — GitHub Pages)
-  └── User enters instance name → redirects to https://{name}.claw-me.com
-      │
-      ▼
-Cloudflare Access  (Google OAuth + One-time PIN)
-  └── Authenticates user, injects Cf-Access-Authenticated-User-Email header
+  └── User logs in via Google OAuth or password + MFA
+        ├── Auth requests go to: https://auth.claw-me.com  (claw-auth Worker)
+        ├── claw-auth issues a signed JWT in a claw_session cookie (.claw-me.com domain)
+        └── Redirects to instances.dashboard_url (tokenized URL with #token=XXX)
       │
       ▼
 Cloudflare Worker: tenant-guard  (LAYER 1 — Edge Security)
   └── Route: *.claw-me.com/*
-        ├── Reads Cf-Access-Authenticated-User-Email header
+        ├── Reads claw_session JWT cookie (HMAC-SHA256 signed)
         ├── Looks up tenant ownership in Supabase (instances → users table)
+        ├── Injects BOTH X-Forwarded-User and Cf-Access-Authenticated-User-Email headers
+        │     (dual-header for old/new container backward compatibility)
         ├── Passes through if user is owner/member
-        └── Returns branded 403 if not authorized
+        └── Returns branded 403 if not authorized / redirects to login if no session
       │
       ▼
 AWS ALB  (claw-me-alb)
@@ -649,20 +650,26 @@ OpenClaw's control UI requires a **Secure Context** (HTTPS or localhost) to acce
 *   CNAME   claw-me-alb-1129197728.us-east-1.elb.amazonaws.com   (proxied)
 ```
 
-### Cloudflare Access (Identity Layer)
+### claw-auth Worker (Identity Layer)
 
-Cloudflare Access gates all `*.claw-me.com` subdomains with Google OAuth + One-time PIN. After authentication, Cloudflare injects the `Cf-Access-Authenticated-User-Email` header with the user's verified email address.
+Authentication is handled by the `claw-auth` Cloudflare Worker at `auth.claw-me.com`. It replaced Cloudflare Access entirely and supports both Google OAuth and password + TOTP MFA login.
 
 | Setting | Value |
 |---|---|
-| Team name | `ielaboratories` |
-| Team domain | `ielaboratories.cloudflareaccess.com` |
-| Identity provider | Google OAuth |
-| Protected domain | `*.claw-me.com` |
-| Auth header | `Cf-Access-Authenticated-User-Email` (auto-injected) |
-| Login page | Branded with claw-me.com dark theme + lobster logo |
+| Worker name | `claw-auth` |
+| URL | `https://auth.claw-me.com` |
+| Auth methods | Google OAuth (via Google APIs) + password + TOTP MFA |
+| Session token | `claw_session` JWT cookie (HMAC-SHA256, 7-day expiry, domain `.claw-me.com`) |
+| Post-login redirect | `instances.dashboard_url` (tokenized URL) → falls back to `endpoint_url` |
+| File | `cloudflare-worker/claw-auth.js` |
 
-> **Note:** The old "Inject user header for OpenClaw" Transform Rule (static `X-Forwarded-User: user`) has been **deleted**. Cloudflare Access now provides real per-user identity via `Cf-Access-Authenticated-User-Email`.
+**Flow:**
+1. User visits `claw-me.com/login/` with `?instance=tenant-abc123` pre-filled (from welcome email link)
+2. User chooses Google OAuth or password + MFA
+3. `claw-auth` verifies credentials, issues `claw_session` JWT cookie on `.claw-me.com`
+4. `claw-auth` fetches `dashboard_url` from Supabase and redirects the user there
+
+> **Note:** Cloudflare Access (`ielaboratories.cloudflareaccess.com`) is no longer used for tenant authentication. The old "Inject user header for OpenClaw" Transform Rule (static `X-Forwarded-User: user`) was deleted. The `claw-auth` Worker issues real per-user JWT sessions.
 
 ### Cloudflare Worker: tenant-guard
 
@@ -681,12 +688,17 @@ Tenant access is protected by two independent layers. Both must pass for a reque
 The `tenant-guard` Worker runs on every request to `*.claw-me.com/*` and validates tenant ownership at the edge before traffic reaches the origin:
 
 1. Extract subdomain from the request hostname
-2. Read `Cf-Access-Authenticated-User-Email` header (injected by Cloudflare Access)
-3. Look up `instances` table in Supabase by `endpoint_url` to find the `tenant_id`
-4. Check `users` table for a row matching the email with `owner` or `member` role
-5. Pass through if authorized; return branded 403 if not
+2. Read the `claw_session` JWT cookie (issued by `claw-auth` Worker)
+3. Verify JWT signature (HMAC-SHA256) and expiry
+4. Look up `instances` table in Supabase by `endpoint_url` to find the `tenant_id`
+5. Check `users` table for a row matching the email with `owner` or `member` role
+6. If authorized: inject BOTH `Cf-Access-Authenticated-User-Email` and `X-Forwarded-User` headers with the authenticated email, then pass through
+7. If no valid session: redirect to `https://claw-me.com/login`
+8. If authorized but wrong tenant: return branded 403
 
 Skips root domain, `www`, `admin`, and `litellm` subdomains. Fails closed (denies if Supabase lookup fails).
+
+> **Dual-header injection:** tenant-guard injects BOTH `X-Forwarded-User` and `Cf-Access-Authenticated-User-Email` for backward compatibility. Containers provisioned from older images (v14 and earlier) expect `X-Forwarded-User`; v15+ containers expect `Cf-Access-Authenticated-User-Email`. Injecting both ensures all containers work.
 
 **Config:** `cloudflare-worker/wrangler.toml`
 ```
@@ -696,6 +708,7 @@ routes = [{ pattern = "*.claw-me.com/*", zone_name = "claw-me.com" }]
 **Secrets (set via `wrangler secret put`):**
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_KEY`
+- `JWT_SECRET` (must match the secret used by `claw-auth`)
 
 ### Layer 2: Container Auth Proxy
 
@@ -716,15 +729,18 @@ This provides defense in depth — if the Worker is bypassed or misconfigured, t
 
 **File:** `login/index.html` (GitHub Pages)
 **URL:** `https://claw-me.com/login/`
+**Auth Worker:** `cloudflare-worker/claw-auth.js` at `https://auth.claw-me.com`
 
-A branded login page where users enter their instance name to access their tenant:
+A branded login page that authenticates the user and redirects them directly into their OpenClaw dashboard:
 
-1. User navigates to `claw-me.com/login/` (linked from landing page "Early Access Login" button)
-2. Enters their instance name (e.g., `tenant-abc123`)
-3. Page validates input (lowercase letters, numbers, hyphens)
-4. Redirects to `https://{name}.claw-me.com`
-5. Cloudflare Access intercepts → Google OAuth login
-6. Worker validates ownership → container proxy validates ownership → OpenClaw dashboard
+1. User navigates to `claw-me.com/login/` — typically via a link in the welcome email that includes `?instance=tenant-abc123&email=user@example.com` to pre-fill the form
+2. User chooses Google OAuth or password + TOTP MFA
+3. `claw-auth` verifies credentials against Supabase, issues a signed `claw_session` JWT cookie on `.claw-me.com` domain
+4. `claw-auth` fetches `instances.dashboard_url` for the tenant (the tokenized URL)
+5. Browser is redirected to the tokenized URL: `https://tenant-abc123.claw-me.com/#token=XXX`
+6. `tenant-guard` Worker validates the `claw_session` cookie, injects email headers, passes to ALB
+7. Container auth proxy validates email, forwards to OpenClaw
+8. OpenClaw frontend reads `#token=XXX` from the URL hash — user lands directly in the dashboard with no additional login step
 
 The landing page (`index.html`) includes two entry points to the login flow:
 - Top nav: "Early Access Login" button
@@ -736,6 +752,47 @@ The landing page (`index.html`) includes two entry points to the login flow:
 
 - **URL:** `https://claw-me.com/admin/index.html` (GitHub Pages)
 - **File:** `admin/index.html`
+- **Auth:** `admin-guard` Cloudflare Worker (same JWT + MFA as tenant containers)
+
+### Security Layer — admin-guard Worker
+
+The admin portal is protected by the `admin-guard` Cloudflare Worker running on the `claw-me.com/admin/*` route. It uses the exact same JWT cookie mechanism as `tenant-guard` and tenant containers:
+
+| Step | Detail |
+|------|--------|
+| 1 | Read `claw_session` JWT cookie from request |
+| 2 | Verify HMAC-SHA256 signature using shared `JWT_SECRET` |
+| 3 | Check email is in `ADMIN_EMAILS` Cloudflare secret (comma-separated operator list) |
+| 4 | **Pass** → proxy to origin (GitHub Pages) |
+| 5 | **No session** → redirect to `/login?redirect=/admin` (returns here after MFA) |
+| 6 | **Not admin** → branded 403 page |
+
+**Files:**
+- `cloudflare-worker/admin-guard.js` — Worker source
+- `cloudflare-worker/wrangler-admin.toml` — Deploy config
+
+**Secrets to configure once (never commit):**
+```bash
+npx wrangler secret put JWT_SECRET   --config cloudflare-worker/wrangler-admin.toml
+# Use the SAME value as claw-auth and tenant-guard
+
+npx wrangler secret put ADMIN_EMAILS --config cloudflare-worker/wrangler-admin.toml
+# Comma-separated, e.g.: alexis.hiram@gmail.com,ops@claw-me.com
+```
+
+**Deploy:**
+```bash
+cd cloudflare-worker
+npx wrangler deploy --config wrangler-admin.toml
+```
+
+### Admin Login Flow
+
+When an unauthenticated request hits `/admin`, the guard redirects to `/login?redirect=/admin`. The login page detects `?redirect=/admin` and:
+1. Hides the instance-name field (not needed for operator accounts)
+2. Shows "Admin access — sign in with your operator credentials"
+3. Hides the Google OAuth button (password+MFA only for admin)
+4. After successful MFA, passes `redirect_url_override: "/admin"` to `claw-auth`'s `verify-mfa` endpoint, which validates it's on the same domain and returns `redirect_url: "https://claw-me.com/admin"` — landing the user directly on the admin portal.
 
 ### Features
 - Lists all tenants with status, plan, email
@@ -788,12 +845,12 @@ EventBridge (ECS Task State Change: RUNNING)
   → Lambda updates instances.status = 'running'
         │
         ▼
-Tenant accesses: https://claw-me.com/login/ → enters instance name
-  → redirects to https://tenant-{prefix}.claw-me.com
-  → Cloudflare Access (Google OAuth)
-  → Worker checks ownership (Layer 1)
-  → Auth proxy checks ownership (Layer 2)
-  → OpenClaw dashboard
+Tenant accesses: https://claw-me.com/login/ (link in welcome email includes ?instance= pre-filled)
+  → Google OAuth or password+MFA via claw-auth Worker
+  → claw-auth issues claw_session JWT cookie, redirects to instances.dashboard_url
+  → tenant-guard Worker validates JWT, injects email headers (Layer 1)
+  → Auth proxy validates email (Layer 2)
+  → OpenClaw dashboard (frontend reads #token= from URL hash, no extra login step)
 ```
 
 ---
@@ -802,7 +859,9 @@ Tenant accesses: https://claw-me.com/login/ → enters instance name
 
 ### How It Works
 
-The gateway runs with `auth.mode: "trusted-proxy"`. All browser connections are authenticated via the `Cf-Access-Authenticated-User-Email` HTTP header, which Cloudflare Access injects after Google OAuth authentication. The authenticated user's email becomes the OpenClaw user identity. No device pairing is required.
+The gateway runs with `auth.mode: "trusted-proxy"`. All browser connections are authenticated via the `Cf-Access-Authenticated-User-Email` HTTP header, which the `tenant-guard` Worker injects after validating the user's `claw_session` JWT cookie. The authenticated user's email becomes the OpenClaw user identity. No device pairing is required.
+
+The `tenant-guard` Worker also injects `X-Forwarded-User` for backward compatibility with containers built from older images that expect that header name. Both headers carry the same email value.
 
 ### How to Access the Control UI
 
@@ -1060,7 +1119,14 @@ OpenClaw occasionally does a "full process restart" (spawns new PID, exits origi
 Any `openclaw` CLI command run while the gateway is live writes to `gateway.auth.token` in `openclaw.json`. The gateway file-watches the config, detects the change, and does a full process restart — wiping all device pairing state. **Do not run any `openclaw` CLI commands while the gateway is running.**
 
 ### `trusted-proxy` mode: `trusted_proxy_user_missing`
-The gateway started but rejected all connections because the `Cf-Access-Authenticated-User-Email` header was missing. This header is injected by Cloudflare Access after Google OAuth authentication. If the header is absent, the user has not gone through Cloudflare Access, or Access is not configured for the subdomain.
+The gateway started but rejected all WebSocket connections. The most common cause is a **header name mismatch**: the container's `openclaw.json` is configured with a `trustedProxy.userHeader` that doesn't match the header the Worker is actually injecting.
+
+- **v15+ containers** (entrypoint.sh v15): `userHeader: "Cf-Access-Authenticated-User-Email"`
+- **v14 and earlier containers**: `userHeader: "X-Forwarded-User"`
+
+The `tenant-guard` Worker now injects BOTH headers to handle all container generations. If you see this error on a running container, check the container's `openclaw.json` (via ECS Exec or CloudWatch logs) to confirm which header it expects. The `remote=10.x.x.x` IP in the WS log is the ALB — verify it falls within the `trustedProxies` ranges in the config (`10.0.0.0/8` covers all ALB IPs).
+
+Diagnostic: Check CloudWatch logs for the container startup — it prints the full `openclaw.json` at boot. The `trustedProxy.userHeader` value tells you exactly which header is expected.
 
 ### LiteLLM ECS service stuck at 0 running tasks after fix
 After fixing the CloudWatch log group permission issue, ECS does not automatically retry — it backs off. Use `aws ecs update-service --force-new-deployment` to kick it.
@@ -1077,6 +1143,54 @@ Tenant containers routing through `https://litellm.claw-me.com` (the public doma
 ### CloudMap DNS not resolving from standalone Fargate tasks
 Setting `OPENAI_API_BASE=http://litellm.claw-me.local:4000` caused timeouts — the tenant task couldn't resolve the CloudMap DNS name. VPC has `enableDnsSupport=true` but `enableDnsHostnames=false`. The Cloud Map namespace and service are correctly configured, but standalone Fargate tasks (not part of an ECS service with service discovery) may not reliably resolve private DNS. Workaround: use a hardcoded IP (e.g., `http://10.0.2.58:4000`). Production fix: enable `enableDnsHostnames` on the VPC, or resolve the IP at Lambda provision time via the ECS/CloudMap API.
 
+**Update (March 25, 2026):** VPC private hosted zone `claw-me.local` has a Route53 A record for `litellm.claw-me.local` pointing to the LiteLLM task IP. ECS Fargate containers in the VPC CAN resolve this name. The DNS issue only affects Lambda (which is NOT in the VPC — `VpcConfig` is null). See below.
+
+### Lambda is NOT in the VPC — cannot resolve private DNS
+The provision Lambda has `VpcConfig: null`. It cannot resolve `litellm.claw-me.local` or any other `claw-me.local` private hosted zone record. Error: `ENOTFOUND hostname litellm.claw-me.local`. Fix: always use the public `LITELLM_URL` for Lambda→LiteLLM calls. ECS containers use `LITELLM_INTERNAL_URL` (private DNS) for their API traffic — that works because containers run inside the VPC.
+
+```
+Lambda (outside VPC) → https://litellm.claw-me.com  (key generation only)
+ECS containers (in VPC) → http://litellm.claw-me.local:4000  (all API calls)
+```
+
+Never set `litellmKeygenUrl = LITELLM_INTERNAL_URL || LITELLM_URL` in the Lambda — internal URL won't resolve. Use `LITELLM_URL` directly for key generation.
+
+### LiteLLM master key mismatch causes silent 401s on key generation
+The Lambda's `LITELLM_MASTER_KEY` must exactly match the `LITELLM_MASTER_KEY` env var in the LiteLLM ECS task. If they differ, every `/key/generate` request returns `401 Unauthorized`. The Lambda then sets `litellmVirtualKey = ''`, which causes containers to fall back to the raw `OPENAI_API_KEY` — bypassing metering entirely.
+
+The misleading part: the Lambda code logs `"Created LiteLLM virtual key for tenant X"` unconditionally, even when `litellmData.key` comes back empty. The log line fires right after the assignment regardless of its value. **Do not trust this log message — check whether `OPENAI_API_KEY` in the ECS task env is a LiteLLM virtual key (starts with `sk-ucF...` or similar short key) vs the raw OpenAI key (starts with `sk-proj-...`).** If it's the raw key, LiteLLM key generation failed.
+
+Current keys:
+- LiteLLM task definition env: `LITELLM_MASTER_KEY=sk-litellm-master-clawme-2026x03x21`
+- Lambda env: must match exactly
+
+### `No API key found for provider "openai"` — even with correct OPENAI_API_KEY env var
+`openclaw models auth paste-token` is an **interactive TUI** application. It draws a full-screen UI using ANSI escape codes and waits for keyboard input. It cannot be automated via piped stdin, Python pty, `TERM=dumb`, or `pseudoTerminal: true` — it writes nothing to `auth-profiles.json` without real human keyboard interaction.
+
+The correct fix is to **bypass `auth-profiles.json` entirely** by writing `models.providers.openai.apiKey` directly into `openclaw.json`. This works for both the LiteLLM path (uses virtual key + baseUrl) and the direct path (uses raw OpenAI key). The `paste-token` call in `entrypoint.sh` is left in place but runs with `|| true` so failure is non-fatal.
+
+```python
+# Both paths must write this into openclaw.json:
+config['models'] = {
+  'providers': {
+    'openai': {
+      'apiKey': api_key,   # LiteLLM virtual key OR raw OpenAI key
+      'baseUrl': base_url + '/v1',  # only in LiteLLM path
+      'models': [...]       # required — omitting this crashes the gateway
+    }
+  }
+}
+```
+
+### S3 wrapper-entrypoint.sh is the source of truth for container startup
+The ECR image (`:v15`) has an old `entrypoint.sh` that lacks the LiteLLM path, `TENANT_OWNER_EMAILS`, and direct-provider config. The task definition command downloads `wrapper-entrypoint.sh` from S3 and `exec`s it, completely replacing the image's entrypoint:
+
+```bash
+aws s3 cp s3://claw-me-config-204128836886/wrapper-entrypoint.sh /tmp/wrapper-entrypoint.sh --region us-east-1 && chmod +x /tmp/wrapper-entrypoint.sh && exec /tmp/wrapper-entrypoint.sh
+```
+
+The canonical copy of this file is `docker/entrypoint.sh` in the workspace. Changes there should be synced to S3. To update a running container, upload to S3 and re-provision (stop + Lambda invoke). **When rebuilding the Docker image (`:v16`), bake this file in and remove the S3 download step.**
+
 ### OpenClaw internal health check fails with gateway authorization error
 The cron-based health check inside the container hits the gateway from `127.0.0.1` without an `X-Forwarded-User` header. In `trusted-proxy` mode, this gets rejected. Fix: include `127.0.0.1/8` in the `trustedProxies` array in `openclaw.json`. Requests from loopback are then trusted without needing the proxy header. Task def `:46` applies this as a runtime patch via entrypoint override.
 
@@ -1088,6 +1202,74 @@ Building on Apple Silicon (M-series Mac) produces an ARM image by default. Farga
 
 ### Lambda SUBNET_IDS formatting
 The `SUBNET_IDS` env var must use commas (`,`) not colons (`:`) between subnet IDs. The Lambda splits on commas (`process.env.SUBNET_IDS.split(',')`) when creating the Fargate task. Using colons produces `InvalidSubnetID.NotFound` because AWS receives the entire colon-delimited string as one subnet ID. Be careful when using the AWS CLI `--environment` shorthand, which also uses commas as delimiters — quote the value or use JSON format.
+
+### `{"error":"Internal server error"}` on login (both Google and password flows)
+`claw-auth` queries `SELECT endpoint_url, dashboard_url FROM instances` during the post-auth redirect. If the `dashboard_url` column doesn't exist in Supabase, Supabase returns a 400 error, which `claw-auth` catches and returns as "Internal server error". Fix: ensure the column exists:
+```sql
+ALTER TABLE instances ADD COLUMN IF NOT EXISTS dashboard_url TEXT;
+```
+
+### OpenClaw model picker only shows models from its internal registry — custom IDs are silently ignored
+OpenClaw's model picker dropdown is NOT driven by `agents.defaults.models` or `models.providers.openai.models` in `openclaw.json`. It filters entries against its own internal model registry. Only recognised OpenAI model IDs (e.g. `gpt-4.1-mini`, `gpt-4.1`) appear. Custom IDs like `nova-lite`, `nova-pro`, `claude-haiku-bedrock` are silently ignored — they never show in the UI even if explicitly listed in the config.
+
+Consequence: Bedrock and other custom LiteLLM-registered models are technically accessible (LiteLLM can route to them) but cannot be selected via the picker. The `agents.defaults.models` dict is used for display aliases only for models OpenClaw already recognises.
+
+Workaround for Bedrock: route Bedrock behind a recognised model ID at the LiteLLM layer (e.g. register `nova-lite` as the backend for `gpt-4.1-mini`). This is transparent to OpenClaw but hides which model is actually running. Do not do this without making the mapping clear to tenants.
+
+### OpenClaw falls back from unrecognised primary model — bypasses LiteLLM baseUrl
+If `agents.defaults.model.primary` is set to a model ID that OpenClaw does not recognise (e.g. `openai/nova-lite`), OpenClaw falls back to its own internal default (`openai/gpt-4.1-mini`) using a **different code path** that ignores `models.providers.openai.baseUrl`. The request goes directly to `api.openai.com` with whatever API key is in the config — which, when that key is a LiteLLM virtual key (`sk-v6caE...`), produces a 401 from OpenAI:
+
+```
+401 Incorrect API key provided: sk-v6caE*****. You can find your API key at https://platform.openai.com/account/api-keys.
+```
+
+**Fix: `primary` must always be a model ID that OpenClaw recognises.** Currently the only safe values are `openai/gpt-4.1-mini` and `openai/gpt-4.1`. Never set primary to a Bedrock or custom model ID.
+
+```python
+# ✓ CORRECT — OpenClaw recognises this and routes through baseUrl
+primary = 'openai/gpt-4.1-mini'
+
+# ✗ WRONG — OpenClaw doesn't recognise this, falls back, bypasses baseUrl, 401 from OpenAI
+primary = 'openai/nova-lite'
+```
+
+### LiteLLM alias collision on re-provision — `key_alias already exists`
+LiteLLM enforces unique `key_alias` across all keys. On every re-provision of the same tenant, `key/generate` with `key_alias: tenant-{id}` fails with:
+```json
+{"error": {"message": "Key with alias 'tenant-bac670a1' already exists."}}
+```
+The Lambda silently sets `litellmVirtualKey = ''` and falls back to the raw OpenAI key, bypassing LiteLLM entirely. Fix: on "already exists" error, fetch all keys matching the alias via `GET /key/list?key_alias=tenant-{id}`, delete them via `POST /key/delete`, then create fresh. The `keys` array in `/key/list` contains hashed key IDs — these are accepted by `/key/delete`. The actual virtual key (`sk-...`) is never returned after creation; always delete-and-recreate rather than trying to retrieve and reuse.
+
+### `dashboard_url` is NULL after provisioning — "Stored dashboard URL in Supabase" is a lie
+`entrypoint.sh` stores the tokenized URL with:
+```bash
+curl -s -X PATCH ... > /dev/null 2>&1 && echo "Stored dashboard URL in Supabase" || echo "Warning: ..."
+```
+`curl` exits 0 even on HTTP 4xx/5xx errors, so the success message always prints regardless of whether Supabase actually accepted the write. If `dashboard_url` is still NULL after the container starts, it means the Supabase PATCH returned an error (e.g., column didn't exist yet). Recovery: read the tokenized URL from CloudWatch logs (look for "Tokenized dashboard URL: https://...") and PATCH Supabase manually:
+```bash
+curl -X PATCH "https://xfklynglppislmdhjtut.supabase.co/rest/v1/instances?tenant_id=eq.{TENANT_ID}" \
+  -H "apikey: $SUPABASE_SERVICE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"dashboard_url": "https://tenant-XXXX.claw-me.com/#token=..."}'
+```
+
+### ECS Exec output not captured in bash scripts
+`aws ecs execute-command --interactive --command "..."` sends output through the SSM Session Manager channel — not to bash stdout. The exit code is 0 and bash receives no output. To inspect container state, write output to a file inside the container with one command, then read it with a second. Better yet: read from CloudWatch Logs, which captures all container stdout/stderr. The CloudWatch log stream name matches the ECS task ID: `openclaw/openclaw/{TASK_ID}`.
+
+The Session Manager plugin must be installed for ECS Exec to work at all:
+```bash
+# macOS
+brew install --cask session-manager-plugin
+
+# Linux (no sudo available)
+curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o /tmp/ssm.deb
+dpkg -x /tmp/ssm.deb /tmp/ssm-plugin
+cp /tmp/ssm-plugin/usr/local/sessionmanagerplugin/bin/session-manager-plugin ~/.local/bin/
+chmod +x ~/.local/bin/session-manager-plugin
+```
+
+### `openclaw dashboard --no-open` must NOT run while the gateway is live
+This command modifies `gateway.auth.token` in `openclaw.json`. The gateway file-watches its config and performs a full process restart on any change — wiping all device state including the tokenized URL credential. Always run `openclaw dashboard --no-open` in `entrypoint.sh` before `exec openclaw gateway`, never via ECS Exec on a running container. If you need the tokenized URL from a running container, read it from CloudWatch startup logs instead.
 
 ### Tenants stuck as "pending" despite running instances
 EventBridge or Lambda errored during provisioning and never flipped the status. Fix with SQL:
@@ -1128,23 +1310,32 @@ AWS Secrets Manager has a 7-day recovery window. If you deprovision and immediat
 - [x] **4-channel support** — Telegram, WhatsApp, Discord, Slack all `enabled: true` in `openclaw.json`. Tenants configure tokens from the dashboard UI.
 - [x] **Container memory increased to 4GB** — required for WhatsApp Web bridge (headless Chromium + Baileys crypto ops). `PLAN_RESOURCES` in Lambda aligned at 2048/4096 for all plans.
 - [x] **Channels page fix** — channels with `enabled: false` flash then disappear. Set all to `true` so they persist on the page.
-- [x] **Cloudflare Access** on `*.claw-me.com` — Google OAuth + One-time PIN identity layer with branded login page
 - [x] **Dual-layer tenant security** — Cloudflare Worker (`tenant-guard`) at edge + container auth proxy (`auth-proxy.py`) for defense in depth
-- [x] **Tenant login gateway** — `claw-me.com/login/` page for instance name entry → redirect to tenant subdomain
+- [x] **Tenant login gateway** — `claw-me.com/login/` page + `claw-auth` Worker with Google OAuth + password/MFA, JWT session cookies
 - [x] **Landing page early access buttons** — "Early Access Login" in top nav + mid-page "Log in to your claw-me instance" button
-- [x] **Docker image v15 built and deployed** — includes auth-proxy.py, updated entrypoint with owner email fetch, task def `:53`
+- [x] **Docker image v15 built and deployed** — includes auth-proxy.py, updated entrypoint with owner email fetch, tokenized dashboard URL generation, task def `:53`
 - [x] **Old Transform Rule removed** — deleted "Inject user header for OpenClaw" (static `X-Forwarded-User: user` header)
+- [x] **`dashboard_url` column** added to `instances` table in Supabase
+- [x] **tenant-guard dual-header injection** — injects both `X-Forwarded-User` and `Cf-Access-Authenticated-User-Email` for backward compatibility
+- [x] **Welcome email login URL** — includes `?instance=` and `?email=` params to pre-fill login form
+- [x] **End-to-end flow verified** — Stripe checkout → n8n → Lambda provision → welcome email → login → tokenized dashboard URL → OpenClaw (March 24, 2026)
 - [x] **All code pushed to GitHub** — Worker, auth proxy, login page, landing page, Docker changes
+- [x] **LiteLLM master key mismatch fixed** — Lambda `LITELLM_MASTER_KEY` now matches LiteLLM task def. Virtual key creation confirmed working (March 25, 2026)
+- [x] **Metering end-to-end working** — Lambda creates LiteLLM virtual key via public URL → passes to ECS container as `OPENAI_API_KEY` + `OPENAI_API_BASE=http://litellm.claw-me.local:4000` → container uses VPC-internal route for all API traffic (March 25, 2026)
+- [x] **Direct-path fallback fixed** — `entrypoint.sh` direct path (no LiteLLM) now writes `models.providers.openai.apiKey` into `openclaw.json`, bypassing `auth-profiles.json` and the non-automatable `paste-token` TUI (March 25, 2026)
+- [x] **S3 wrapper-entrypoint.sh updated** — `docker/entrypoint.sh` is the source of truth; synced to `s3://claw-me-config-204128836886/wrapper-entrypoint.sh`
 
 ### Infrastructure — High Priority
-- [ ] **Fix service discovery DNS** — standalone Fargate tasks don't resolve `litellm.claw-me.local`. Options: (1) enable `enableDnsHostnames` on VPC, (2) resolve LiteLLM IP at Lambda provision time via ECS/CloudMap API, (3) add an internal NLB in front of LiteLLM (~$16/mo)
+- [ ] **Rebuild Docker image to `:v16`** — bake `docker/entrypoint.sh` into the image so the S3 download step in the task command is no longer needed. Requires Docker on Mac: `bash docker/build-v16.sh && bash docker/push-v16.sh`
+- [ ] **Fix service discovery DNS** — Lambda resolves using public URL (works), but LiteLLM task IP is hardcoded in Route53 A record. If LiteLLM task restarts, its IP changes and the A record goes stale. Options: (1) add internal NLB in front of LiteLLM (~$16/mo, stable IP), (2) update Route53 A record in Lambda after each LiteLLM task start via EventBridge, (3) use ECS service with static private IP
 - [ ] **Add UNIQUE constraints** on LiteLLM daily spend tables — prevents duplicate aggregation rows. See `litellm/fix-missing-columns.sql` for reference.
 - [ ] **WhatsApp 401 Unauthorized on QR peering** — QR generates and scans, but WhatsApp servers reject the encrypted session. May be headless Chromium detection or memory pressure during Noise Protocol handshake. Under investigation.
-- [ ] **Reprovision existing tenants with v15 image** — to pick up auth proxy and Cloudflare Access header changes
+- [ ] **Reprovision existing tenants with v15 image** — old containers use `X-Forwarded-User`; new containers use `Cf-Access-Authenticated-User-Email`. Both work now (tenant-guard injects both), but reprovisioning cleans up the inconsistency.
+- [ ] **Fix `dashboard_url` PATCH verification** — entrypoint.sh logs "Stored dashboard URL in Supabase" even when the PATCH fails (curl exits 0 on HTTP errors). Add `-f` flag to curl or check HTTP response code.
 
 ### Features — Medium Priority
 - [ ] **Surface `dashboard_url`** as a "Launch Dashboard" button in the admin portal
-- [ ] **Cloudflare Access** on `claw-me.com/admin/` — protect the admin portal
+- [x] **Protect admin portal** — `admin-guard` Worker on `claw-me.com/admin/*`; JWT + `ADMIN_EMAILS` check; deploy with `wrangler-admin.toml`
 - [ ] **Customer self-service portal** — tenant login, instance status, credentials, launch dashboard button
 - [ ] **Additional channels** — Signal, Microsoft Teams, LINE, Mattermost available in OpenClaw. Enable as tenant demand requires.
 - [ ] **Fix login page logo** — SVG logo shows alt text instead of rendering on the `/login/` page

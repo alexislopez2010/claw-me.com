@@ -1,24 +1,30 @@
 #!/bin/bash
-# claw-me.com — OpenClaw tenant container entrypoint (v15)
+# claw-me.com — OpenClaw tenant container entrypoint (v30)
 #
-# This script runs at container startup and:
-#   1. Pulls tenant config from AWS Secrets Manager
-#   2. Preserves Lambda-injected env vars (OPENAI_API_KEY, OPENAI_API_BASE)
-#   3. Generates gateway token, registers with ALB target group
-#   4. Writes openclaw.json with 4-channel support (Telegram, WhatsApp, Discord, Slack)
-#   5. Configures model auth via paste-token (BEFORE gateway starts)
-#   6. Generates tokenized dashboard URL → stores in Supabase
-#   7. Starts OpenClaw gateway on port 18789
+# Clean rewrite — no MITM proxy, no cert tricks.
 #
-# Two config paths:
-#   - LiteLLM path: when OPENAI_API_BASE is set (includes models.providers.openai config)
-#   - Direct path: when no LiteLLM proxy (no models section, uses default provider)
+# LiteLLM metering:
+#   openclaw.json is written with baseUrl = LiteLLM internal URL and
+#   apiKey = LITELLM_VIRTUAL_KEY.  paste-token is SKIPPED in LiteLLM mode
+#   so it cannot write auth-profiles.json and override the baseUrl.
+#   openclaw (v2026.3.24+) respects the baseUrl in openclaw.json.
 #
-# All channels are enabled:true with empty tokens — tenants configure from dashboard.
-# IMPORTANT: channels with enabled:false flash then disappear on the dashboard page.
+# v29 key-creation:
+#   Lambda cannot reach litellm.claw-me.com (Cloudflare blocks non-browser
+#   traffic), so LITELLM_VIRTUAL_KEY is always empty after Lambda runs.
+#   Fix: container is already in the VPC, so it calls the LiteLLM internal
+#   URL directly at startup to create its own per-tenant virtual key.
+#   Requires LITELLM_MASTER_KEY env var (passed via ECS task definition).
+#
+# Direct mode (no LITELLM_VIRTUAL_KEY and key creation fails):
+#   openclaw.json gets no baseUrl — calls go straight to api.openai.com.
+#   paste-token runs normally to register the API key.
+#
+# All channels are enabled:true with empty tokens — tenants configure via dashboard.
 set -e
 
 echo "🦞 claw-me.com — Starting OpenClaw for tenant: ${TENANT_ID:-unknown}"
+openclaw --version 2>&1 | head -1 || true
 
 # ── Pull secrets from AWS Secrets Manager ──
 if [ -n "$SECRET_NAME" ] && [ -n "$AWS_DEFAULT_REGION" ]; then
@@ -31,17 +37,104 @@ if [ -n "$SECRET_NAME" ] && [ -n "$AWS_DEFAULT_REGION" ]; then
 
   export OPENCLAW_GATEWAY_TOKEN=$(echo "$SECRET_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('gatewayToken',''))" 2>/dev/null || echo "")
   export TELEGRAM_BOT_TOKEN=$(echo "$SECRET_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('telegramBotToken',''))" 2>/dev/null || echo "")
-  # Only override API keys from Secrets Manager if LiteLLM is NOT active.
-  # When OPENAI_API_BASE is set, the Lambda injected a LiteLLM virtual key
-  # as OPENAI_API_KEY — don't overwrite it with the raw provider key.
-  if [ -z "$OPENAI_API_BASE" ]; then
-    _SM_OPENAI=$(echo "$SECRET_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('openaiApiKey',''))" 2>/dev/null || echo "")
-    _SM_ANTHROPIC=$(echo "$SECRET_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('anthropicApiKey',''))" 2>/dev/null || echo "")
-    [ -n "$_SM_OPENAI" ]    && export OPENAI_API_KEY="$_SM_OPENAI"
-    [ -n "$_SM_ANTHROPIC" ] && export ANTHROPIC_API_KEY="$_SM_ANTHROPIC"
-  else
-    echo "LiteLLM active (OPENAI_API_BASE=${OPENAI_API_BASE}) — using virtual key, skipping Secrets Manager API keys"
+  _SM_OPENAI=$(echo "$SECRET_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('openaiApiKey',''))" 2>/dev/null || echo "")
+  _SM_ANTHROPIC=$(echo "$SECRET_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('anthropicApiKey',''))" 2>/dev/null || echo "")
+  # In LiteLLM mode, keep OPENAI_API_KEY = virtual key from Lambda (don't overwrite)
+  [ -z "$LITELLM_VIRTUAL_KEY" ] && [ -n "$_SM_OPENAI" ] && export OPENAI_API_KEY="$_SM_OPENAI"
+  [ -n "$_SM_ANTHROPIC" ] && export ANTHROPIC_API_KEY="$_SM_ANTHROPIC"
+fi
+
+# ── Auto-create LiteLLM virtual key (container is in VPC, can reach internal URL) ──
+# Lambda cannot create virtual keys via the public litellm.claw-me.com because
+# Cloudflare blocks non-browser traffic.  The ECS container is in the VPC and
+# can reach litellm.claw-me.local:4000 directly, so we create the key here.
+#
+# LITELLM_MASTER_KEY is injected as a static env var from the ECS task definition
+# (set in the --container-definitions JSON in deploy-v27.sh and later scripts).
+_LITELLM_INTERNAL="${LITELLM_INTERNAL_URL:-http://litellm.claw-me.local:4000}"
+
+if [ -z "$LITELLM_VIRTUAL_KEY" ] && [ -n "$LITELLM_MASTER_KEY" ] && [ -n "$TENANT_ID" ]; then
+  _KEY_ALIAS="tenant-${TENANT_ID}"
+  echo "=== Auto-creating LiteLLM virtual key for ${_KEY_ALIAS} ==="
+
+  _KEY_BODY="{\"key_alias\":\"${_KEY_ALIAS}\",\"metadata\":{\"tenant_id\":\"${TENANT_ID}\"},\"models\":[\"gpt-4.1-mini\",\"gpt-4.1\",\"openai/gpt-4.1-mini\",\"openai/gpt-4.1\"],\"max_budget\":10,\"budget_duration\":\"monthly\"}"
+
+  _KEY_RES=$(curl -s --max-time 10 -X POST "${_LITELLM_INTERNAL}/key/generate" \
+    -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "$_KEY_BODY" 2>/dev/null || echo "{}")
+
+  _LITELLM_NEW_KEY=$(echo "$_KEY_RES" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('key',''))" 2>/dev/null || echo "")
+
+  # If alias already exists (from a previous provision), delete old keys and retry
+  _HAS_EXISTS=$(echo "$_KEY_RES" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+err=str(d.get('error',d.get('detail','')))
+print('yes' if 'already exists' in err or 'already_exists' in err else '')
+" 2>/dev/null || echo "")
+
+  if [ -z "$_LITELLM_NEW_KEY" ] && [ -n "$_HAS_EXISTS" ]; then
+    echo "Key alias ${_KEY_ALIAS} already exists — deleting and recreating"
+
+    # List existing keys by alias
+    _LIST_RES=$(curl -s --max-time 10 "${_LITELLM_INTERNAL}/key/list?key_alias=${_KEY_ALIAS}" \
+      -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" 2>/dev/null || echo "{}")
+    _KEY_IDS=$(echo "$_LIST_RES" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+keys=d.get('keys',[])
+print(json.dumps({'keys':keys}))
+" 2>/dev/null || echo "{\"keys\":[]}")
+
+    # Delete old keys
+    curl -s --max-time 10 -X POST "${_LITELLM_INTERNAL}/key/delete" \
+      -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" \
+      -H "Content-Type: application/json" \
+      -d "$_KEY_IDS" > /dev/null 2>&1 && echo "Deleted old LiteLLM keys" || echo "Warning: key delete failed"
+
+    # Retry creation
+    _KEY_RES=$(curl -s --max-time 10 -X POST "${_LITELLM_INTERNAL}/key/generate" \
+      -H "Authorization: Bearer ${LITELLM_MASTER_KEY}" \
+      -H "Content-Type: application/json" \
+      -d "$_KEY_BODY" 2>/dev/null || echo "{}")
+    _LITELLM_NEW_KEY=$(echo "$_KEY_RES" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('key',''))" 2>/dev/null || echo "")
   fi
+
+  if [ -n "$_LITELLM_NEW_KEY" ]; then
+    export LITELLM_VIRTUAL_KEY="$_LITELLM_NEW_KEY"
+    export OPENAI_API_BASE="$_LITELLM_INTERNAL"
+    # OpenClaw uses OPENAI_API_KEY env var as the Authorization header — it does NOT
+    # read apiKey from openclaw.json providers config.  Override it here so that
+    # LiteLLM receives the virtual key (not the real OpenAI key) and can meter correctly.
+    export OPENAI_API_KEY="$LITELLM_VIRTUAL_KEY"
+    echo "LiteLLM virtual key created: ${LITELLM_VIRTUAL_KEY:0:12}...  base=${OPENAI_API_BASE}"
+
+    # Store virtual key in Supabase for observability (optional, non-fatal)
+    if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ] && [ -n "$TENANT_ID" ]; then
+      curl -s -X PATCH \
+        "${SUPABASE_URL}/rest/v1/instances?tenant_id=eq.${TENANT_ID}" \
+        -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+        -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+        -H "Content-Type: application/json" \
+        -d "{\"litellm_virtual_key\": \"${LITELLM_VIRTUAL_KEY}\"}" \
+        > /dev/null 2>&1 || true
+    fi
+  else
+    echo "Warning: LiteLLM key creation failed. Container will run in direct OpenAI mode."
+    echo "LiteLLM response: $_KEY_RES"
+  fi
+elif [ -n "$LITELLM_VIRTUAL_KEY" ]; then
+  echo "LiteLLM virtual key provided by Lambda: ${LITELLM_VIRTUAL_KEY:0:12}..."
+  # Ensure OPENAI_API_BASE is set if virtual key was provided
+  if [ -z "$OPENAI_API_BASE" ]; then
+    export OPENAI_API_BASE="$_LITELLM_INTERNAL"
+    echo "OPENAI_API_BASE defaulted to: ${OPENAI_API_BASE}"
+  fi
+  # Same as auto-create path: override OPENAI_API_KEY so OpenClaw sends the
+  # virtual key (not the real OpenAI key) as the Authorization header to LiteLLM.
+  export OPENAI_API_KEY="$LITELLM_VIRTUAL_KEY"
+  echo "OPENAI_API_KEY overridden with virtual key for LiteLLM auth"
 fi
 
 # ── Generate gateway token if not provided ──
@@ -56,7 +149,7 @@ PRIVATE_IP=$(curl -s --max-time 5 "${ECS_CONTAINER_METADATA_URI_V4}/task" 2>/dev
   || hostname -I | awk '{print $1}')
 echo "Private IP: ${PRIVATE_IP:-unknown}"
 
-# ── Use HTTPS endpoint from Lambda if provided, else fall back to public IP ──
+# ── Use HTTPS endpoint from Lambda if provided ──
 if [ -n "$HTTPS_ENDPOINT" ]; then
   GATEWAY_ENDPOINT="$HTTPS_ENDPOINT"
 else
@@ -104,37 +197,46 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ] && [ -n "$TENANT_ID"
     > /dev/null 2>&1 && echo "Updated endpoint + token in Supabase" || echo "Warning: could not update Supabase"
 fi
 
-# ── Write openclaw.json config using Python (avoids sed escaping issues) ──
-if [ -n "$OPENAI_API_BASE" ] && [ -n "$OPENAI_API_KEY" ]; then
-  echo "Configuring OpenClaw with LiteLLM proxy at ${OPENAI_API_BASE}"
+# ── Write openclaw.json ──
+#
+# LiteLLM mode  (LITELLM_VIRTUAL_KEY is set):
+#   baseUrl = LiteLLM internal URL, apiKey = virtual key.
+#   paste-token is NOT run — skipping it prevents auth-profiles.json from
+#   being written with api.openai.com as the endpoint, which would override
+#   the baseUrl set here.
+#
+# Direct mode  (no LITELLM_VIRTUAL_KEY):
+#   No baseUrl — calls go straight to api.openai.com.
+#   paste-token runs to register the real API key in auth-profiles.json.
+#
+if [ -n "$LITELLM_VIRTUAL_KEY" ] && [ -n "$OPENAI_API_BASE" ]; then
+  echo "=== LiteLLM mode: writing openclaw.json with LiteLLM baseUrl ==="
   python3 -c "
 import json, os
-base_url = os.environ.get('OPENAI_API_BASE', '')
-api_key  = os.environ.get('OPENAI_API_KEY', '')
+virtual_key   = os.environ.get('LITELLM_VIRTUAL_KEY', '')
+base_url      = os.environ.get('OPENAI_API_BASE', '').rstrip('/') + '/v1'
+gateway_token = os.environ.get('OPENCLAW_GATEWAY_TOKEN', '')
+models = [
+  {'id': 'gpt-4.1-mini', 'name': 'GPT-4.1 Mini', 'contextWindow': 128000, 'maxTokens': 16384},
+  {'id': 'gpt-4.1',      'name': 'GPT-4.1',       'contextWindow': 1000000, 'maxTokens': 32768},
+]
 config = {
   'gateway': {
     'bind': 'lan', 'mode': 'local', 'port': 18789,
-    'auth': {'mode': 'trusted-proxy', 'trustedProxy': {'userHeader': 'Cf-Access-Authenticated-User-Email'}},
-    'trustedProxies': ['127.0.0.1/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
+    'auth': {'mode': 'trusted-proxy', 'trustedProxy': {'userHeader': 'X-Forwarded-User'}},
+    'trustedProxies': ['0.0.0.0/0'],
     'controlUi': {'allowedOrigins': ['*']}
   },
   'models': {
     'providers': {
-      'openai': {
-        'baseUrl': base_url + '/v1',
-        'apiKey': api_key,
-        'models': [
-          {'id': 'gpt-4.1-mini', 'name': 'GPT-4.1 Mini', 'contextWindow': 128000, 'maxTokens': 16384},
-          {'id': 'gpt-4.1', 'name': 'GPT-4.1', 'contextWindow': 1000000, 'maxTokens': 32768}
-        ]
-      }
+      'openai': {'baseUrl': base_url, 'apiKey': virtual_key, 'models': models}
     }
   },
   'agents': {
     'defaults': {
       'workspace': '/root/.openclaw/workspace',
       'model': {'primary': 'openai/gpt-4.1-mini'},
-      'models': {'openai/gpt-4.1-mini': {'alias': 'Primary'}}
+      'models': {'openai/gpt-4.1-mini': {'alias': 'GPT-4.1 Mini'}, 'openai/gpt-4.1': {'alias': 'GPT-4.1'}}
     }
   },
   'channels': {
@@ -146,23 +248,44 @@ config = {
 }
 with open('/root/.openclaw/openclaw.json', 'w') as f:
   json.dump(config, f, indent=2)
+print('LiteLLM config written: baseUrl=' + base_url + '  apiKey=...' + virtual_key[-6:])
 "
+
 else
-  echo "Configuring OpenClaw with direct OpenAI provider"
+  echo "=== Direct mode: writing openclaw.json for direct OpenAI/Anthropic ==="
   python3 -c "
-import json
+import json, os
+openai_key    = os.environ.get('OPENAI_API_KEY', '')
+anthropic_key = os.environ.get('ANTHROPIC_API_KEY', '')
+gateway_token = os.environ.get('OPENCLAW_GATEWAY_TOKEN', '')
+providers = {}
+if openai_key:
+  providers['openai'] = {
+    'apiKey': openai_key,
+    'models': [
+      {'id': 'gpt-4.1-mini', 'name': 'GPT-4.1 Mini', 'contextWindow': 128000, 'maxTokens': 16384},
+      {'id': 'gpt-4.1',      'name': 'GPT-4.1',       'contextWindow': 1000000, 'maxTokens': 32768}
+    ]
+  }
+if anthropic_key:
+  providers['anthropic'] = {
+    'apiKey': anthropic_key,
+    'models': [{'id': 'claude-sonnet-4-6', 'name': 'Claude Sonnet', 'contextWindow': 200000, 'maxTokens': 8096}]
+  }
+primary_model = 'openai/gpt-4.1-mini' if openai_key else 'anthropic/claude-sonnet-4-6'
 config = {
   'gateway': {
     'bind': 'lan', 'mode': 'local', 'port': 18789,
-    'auth': {'mode': 'trusted-proxy', 'trustedProxy': {'userHeader': 'Cf-Access-Authenticated-User-Email'}},
-    'trustedProxies': ['127.0.0.1/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'],
+    'auth': {'mode': 'trusted-proxy', 'trustedProxy': {'userHeader': 'X-Forwarded-User'}},
+    'trustedProxies': ['0.0.0.0/0'],
     'controlUi': {'allowedOrigins': ['*']}
   },
+  'models': {'providers': providers},
   'agents': {
     'defaults': {
       'workspace': '/root/.openclaw/workspace',
-      'model': {'primary': 'openai/gpt-4.1-mini'},
-      'models': {'openai/gpt-4.1-mini': {'alias': 'Primary'}}
+      'model': {'primary': primary_model},
+      'models': {primary_model: {'alias': 'Primary'}}
     }
   },
   'channels': {
@@ -172,33 +295,33 @@ config = {
     'slack':    {'enabled': True, 'mode': 'socket', 'appToken': '', 'botToken': '', 'dmPolicy': 'pairing'}
   }
 }
+if providers:
+  config['models'] = {'providers': providers}
 with open('/root/.openclaw/openclaw.json', 'w') as f:
   json.dump(config, f, indent=2)
+print('Direct config written')
 "
+
+  # paste-token only in direct mode — in LiteLLM mode we skip it so that
+  # auth-profiles.json is never written with api.openai.com as the endpoint.
+  mkdir -p /root/.openclaw/agents/main/agent
+
+  if [ -n "$OPENAI_API_KEY" ]; then
+    echo "=== Configuring OpenAI auth (direct mode) ==="
+    echo "$OPENAI_API_KEY" | openclaw models auth paste-token --provider openai 2>&1 || \
+      echo "Warning: OpenAI auth setup failed"
+  fi
+
+  if [ -n "$ANTHROPIC_API_KEY" ]; then
+    echo "=== Configuring Anthropic auth (direct mode) ==="
+    echo "$ANTHROPIC_API_KEY" | openclaw models auth paste-token --provider anthropic 2>&1 || \
+      echo "Warning: Anthropic auth setup failed"
+  fi
 fi
 
-echo "Config written to ~/.openclaw/openclaw.json"
 echo "=== openclaw.json at startup ==="
 cat ~/.openclaw/openclaw.json
 echo "=== end config ==="
-
-# ── Configure model auth (must run BEFORE gateway starts) ──
-# openclaw models auth paste-token writes to auth-profiles.json.
-# Running it while the gateway is live triggers a config-change restart — so we do it here.
-mkdir -p /root/.openclaw/agents/main/agent
-
-if [ -n "$OPENAI_API_KEY" ]; then
-  # Direct mode: register with openai provider
-  echo "=== Configuring OpenAI auth ==="
-  echo "$OPENAI_API_KEY" | openclaw models auth paste-token --provider openai 2>&1 || \
-    echo "Warning: OpenAI auth setup failed (will retry on next reprovision)"
-fi
-
-if [ -n "$ANTHROPIC_API_KEY" ]; then
-  echo "=== Configuring Anthropic auth ==="
-  echo "$ANTHROPIC_API_KEY" | openclaw models auth paste-token --provider anthropic 2>&1 || \
-    echo "Warning: Anthropic auth setup failed"
-fi
 
 # ── Fetch tenant owner email(s) for container-level auth check ──
 TENANT_OWNER_EMAILS=""
@@ -213,51 +336,28 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ] && [ -n "$TENANT_ID"
 fi
 export TENANT_OWNER_EMAILS
 
-echo "Starting OpenClaw gateway on port ${GATEWAY_PORT:-18789}..."
-
-# ── Generate tokenized dashboard URL (before gateway starts) ──
-# Run before exec so no gateway is running yet — avoids triggering a restart.
-# The tokenized URL embeds a device credential that bypasses pairing entirely.
-echo "=== Generating tokenized dashboard URL ==="
-DASHBOARD_OUTPUT=$(openclaw dashboard --no-open 2>&1 || true)
-echo "$DASHBOARD_OUTPUT"
-echo "=== end dashboard output ==="
-
-# Extract URL and replace localhost with tenant HTTPS endpoint
-DASHBOARD_URL=$(echo "$DASHBOARD_OUTPUT" | grep -oE 'https?://[^ ]+' | head -1 || true)
-if [ -n "$DASHBOARD_URL" ] && [ -n "$HTTPS_ENDPOINT" ]; then
-  # Replace http://localhost:PORT with the tenant HTTPS URL
-  TOKENIZED_URL=$(echo "$DASHBOARD_URL" | sed "s|http://localhost:[0-9]*|${HTTPS_ENDPOINT}|g" | sed "s|https://localhost:[0-9]*|${HTTPS_ENDPOINT}|g" | sed "s|http://127.0.0.1:[0-9]*|${HTTPS_ENDPOINT}|g" | sed "s|https://127.0.0.1:[0-9]*|${HTTPS_ENDPOINT}|g")
+# ── Build tokenized dashboard URL from known gateway token ──
+# We construct the URL directly from OPENCLAW_GATEWAY_TOKEN (which is also
+# written into openclaw.json gateway.auth.token) instead of running
+# "openclaw dashboard --no-open", which could generate its own independent
+# token that doesn't match what the gateway will actually use.
+echo "=== Building tokenized dashboard URL ==="
+if [ -n "$HTTPS_ENDPOINT" ] && [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
+  TOKENIZED_URL="${HTTPS_ENDPOINT}/#token=${OPENCLAW_GATEWAY_TOKEN}"
   echo "Tokenized dashboard URL: ${TOKENIZED_URL}"
 
-  # Store in Supabase
   if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_KEY" ] && [ -n "$TENANT_ID" ]; then
     curl -s -X PATCH \
       "${SUPABASE_URL}/rest/v1/instances?tenant_id=eq.${TENANT_ID}" \
       -H "apikey: ${SUPABASE_SERVICE_KEY}" \
       -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
       -H "Content-Type: application/json" \
-      -d "{\"dashboard_url\": \"${TOKENIZED_URL}\"}" \
-      > /dev/null 2>&1 && echo "Stored dashboard URL in Supabase" || echo "Warning: could not store dashboard URL"
+      -d "{\"dashboard_url\": \"${TOKENIZED_URL}\", \"gateway_token\": \"${OPENCLAW_GATEWAY_TOKEN}\"}" \
+      > /dev/null 2>&1 && echo "Stored dashboard URL + token in Supabase" || echo "Warning: could not store dashboard URL"
   fi
-fi
-
-# NOTE: Do NOT run any `openclaw` CLI commands while the gateway is running.
-# Invoking the CLI modifies gateway.auth.token in the config which triggers
-# a full process restart, wiping all device state.
-
-# ── Start gateway with auth proxy ──
-# If owner emails are configured, run the auth proxy on the public port
-# and OpenClaw on an internal port. Otherwise, run OpenClaw directly.
-if [ -n "$TENANT_OWNER_EMAILS" ]; then
-  export OPENCLAW_PORT=18790
-  echo "Starting auth proxy on port ${GATEWAY_PORT:-18789} → OpenClaw on port ${OPENCLAW_PORT}"
-  python3 /auth-proxy.py &
-  AUTH_PROXY_PID=$!
-  # Give proxy a moment to bind
-  sleep 1
-  exec openclaw gateway --port ${OPENCLAW_PORT}
 else
-  echo "No owner emails configured — running OpenClaw directly (no auth proxy)"
-  exec openclaw gateway --port ${GATEWAY_PORT:-18789}
+  echo "Warning: HTTPS_ENDPOINT or OPENCLAW_GATEWAY_TOKEN not set — skipping dashboard URL storage"
 fi
+
+echo "Starting OpenClaw gateway on port ${GATEWAY_PORT:-18789}"
+exec openclaw gateway --port ${GATEWAY_PORT:-18789}

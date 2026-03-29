@@ -60,6 +60,7 @@ const {
   DeleteTargetGroupCommand,
   DescribeTargetGroupsCommand,
   CreateRuleCommand,
+  ModifyRuleCommand,
   DeleteRuleCommand,
   DescribeRulesCommand,
 } = require('@aws-sdk/client-elastic-load-balancing-v2');
@@ -125,11 +126,11 @@ exports.handler = async (event) => {
 
   // ── API Gateway: manual actions ───────────────────────────────
   const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body || event;
-  const { action, tenantId, plan } = body;
+  const { action, tenantId, plan, telegramBotToken } = body;
 
   try {
     switch (action) {
-      case 'provision':   return await provision(tenantId, plan, body.countryCode);
+      case 'provision':   return await provision(tenantId, plan, body.countryCode, telegramBotToken);
       case 'deprovision': return await deprovision(tenantId);
       case 'status':      return await getStatus(tenantId);
       default:
@@ -143,9 +144,9 @@ exports.handler = async (event) => {
 };
 
 // ── PROVISION ────────────────────────────────────────────────
-async function provision(tenantId, plan = 'starter', countryCode = null) {
+async function provision(tenantId, plan = 'starter', countryCode = null, telegramBotToken = '') {
   const { region, name: regionName, cluster } = resolveRegion(countryCode);
-  console.log(`Provisioning tenant: ${tenantId} (${plan}) → ${region}`);
+  console.log(`Provisioning tenant: ${tenantId} (${plan}) → ${region}${telegramBotToken ? ' [telegram token provided]' : ''}`);
 
   const ecs       = getEcsClient(region);
   const resources = PLAN_RESOURCES[plan] || PLAN_RESOURCES.starter;
@@ -154,7 +155,13 @@ async function provision(tenantId, plan = 'starter', countryCode = null) {
 
   // 1. Create / restore Secrets Manager entry
   const secretName  = `openclaw/tenants/${tenantId}`;
-  const secretValue = JSON.stringify({ tenantId, plan, createdAt: new Date().toISOString(), integrations: {} });
+  const secretValue = JSON.stringify({
+    tenantId,
+    plan,
+    createdAt: new Date().toISOString(),
+    integrations: {},
+    ...(telegramBotToken ? { telegramBotToken } : {}),
+  });
   try {
     await secrets.send(new CreateSecretCommand({
       Name: secretName, Description: `Config for tenant ${tenantId}`, SecretString: secretValue,
@@ -204,46 +211,116 @@ async function provision(tenantId, plan = 'starter', countryCode = null) {
   }
 
   // 3. Create ALB listener rule: tenant-{id}.claw-me.com → target group
+  // Check for existing rules first — re-provision must not create duplicates.
   let ruleArn;
   try {
-    // Find next available priority
+    const hostname = `${subdomain}.${process.env.BASE_DOMAIN}`;
     const { Rules } = await alb.send(new DescribeRulesCommand({ ListenerArn: process.env.ALB_LISTENER_ARN }));
-    const usedPriorities = Rules.map(r => parseInt(r.Priority)).filter(p => !isNaN(p));
-    const priority = usedPriorities.length > 0 ? Math.max(...usedPriorities) + 1 : 1;
 
-    const ruleResult = await alb.send(new CreateRuleCommand({
-      ListenerArn: process.env.ALB_LISTENER_ARN,
-      Priority:    priority,
-      Conditions:  [{ Field: 'host-header', Values: [`${subdomain}.${process.env.BASE_DOMAIN}`] }],
-      Actions:     [{ Type: 'forward', TargetGroupArn: tgArn }],
-    }));
-    ruleArn = ruleResult.Rules[0].RuleArn;
-    console.log(`Created listener rule (priority ${priority}): ${ruleArn}`);
+    // Find all existing rules for this hostname
+    const existing = Rules.filter(r =>
+      r.Conditions.some(c => c.HostHeaderConfig?.Values?.includes(hostname))
+    );
+
+    if (existing.length > 0) {
+      // Reuse the first (lowest priority) rule; delete any extras
+      existing.sort((a, b) => parseInt(a.Priority) - parseInt(b.Priority));
+      ruleArn = existing[0].RuleArn;
+      // Update it to point to current target group (may have changed)
+      await alb.send(new ModifyRuleCommand({
+        RuleArn: ruleArn,
+        Actions: [{ Type: 'forward', TargetGroupArn: tgArn }],
+      }));
+      console.log(`Reusing existing listener rule (priority ${existing[0].Priority}): ${ruleArn}`);
+      // Delete any duplicate rules beyond the first
+      for (const dup of existing.slice(1)) {
+        try {
+          await alb.send(new DeleteRuleCommand({ RuleArn: dup.RuleArn }));
+          console.log(`Deleted duplicate rule (priority ${dup.Priority})`);
+        } catch (e) { console.warn('Duplicate rule delete skipped:', e.message); }
+      }
+    } else {
+      // No existing rule — create one with next available priority
+      const usedPriorities = Rules.map(r => parseInt(r.Priority)).filter(p => !isNaN(p));
+      const priority = usedPriorities.length > 0 ? Math.max(...usedPriorities) + 1 : 1;
+      const ruleResult = await alb.send(new CreateRuleCommand({
+        ListenerArn: process.env.ALB_LISTENER_ARN,
+        Priority:    priority,
+        Conditions:  [{ Field: 'host-header', Values: [hostname] }],
+        Actions:     [{ Type: 'forward', TargetGroupArn: tgArn }],
+      }));
+      ruleArn = ruleResult.Rules[0].RuleArn;
+      console.log(`Created listener rule (priority ${priority}): ${ruleArn}`);
+    }
   } catch (e) {
-    console.warn('Listener rule creation failed (may already exist):', e.message);
+    console.warn('Listener rule setup failed:', e.message);
   }
 
-  // 4. Create LiteLLM virtual key for this tenant
+  // 4. Create or retrieve LiteLLM virtual key for this tenant.
+  // Lambda is NOT in the VPC, so use public LITELLM_URL for key generation.
+  // ECS containers (in VPC) will use LITELLM_INTERNAL_URL for actual API traffic.
   let litellmVirtualKey = '';
-  if (process.env.LITELLM_URL && process.env.LITELLM_MASTER_KEY) {
+  const litellmKeygenUrl = process.env.LITELLM_URL;
+  const ALLOWED_MODELS = [
+    'gpt-4.1-mini', 'gpt-4.1', 'openai/gpt-4.1-mini', 'openai/gpt-4.1',
+  ];
+  if (litellmKeygenUrl && process.env.LITELLM_MASTER_KEY) {
+    const authHeader = { 'Authorization': `Bearer ${process.env.LITELLM_MASTER_KEY}`, 'Content-Type': 'application/json' };
     try {
-      const litellmRes = await fetch(`${process.env.LITELLM_URL}/key/generate`, {
+      // Try to create a new key
+      const litellmRes = await fetch(`${litellmKeygenUrl}/key/generate`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.LITELLM_MASTER_KEY}`,
-          'Content-Type': 'application/json',
-        },
+        headers: authHeader,
         body: JSON.stringify({
-          key_alias:   `tenant-${tenantId}`,
-          metadata:    { tenant_id: tenantId, plan },
-          models:      ['gpt-4.1-mini', 'gpt-4.1', 'openai/gpt-4.1-mini', 'openai/gpt-4.1'],
-          max_budget:  plan === 'starter' ? 10 : plan === 'pro' ? 50 : null,
+          key_alias:       `tenant-${tenantId}`,
+          metadata:        { tenant_id: tenantId, plan },
+          models:          ALLOWED_MODELS,
+          max_budget:      plan === 'starter' ? 10 : plan === 'pro' ? 50 : null,
           budget_duration: 'monthly',
         }),
       });
       const litellmData = await litellmRes.json();
-      litellmVirtualKey = litellmData.key || '';
-      console.log(`Created LiteLLM virtual key for tenant ${tenantId}`);
+
+      if (litellmData.key) {
+        litellmVirtualKey = litellmData.key;
+        console.log(`Created LiteLLM virtual key for tenant ${tenantId}: ${litellmVirtualKey.slice(0, 12)}...`);
+      } else if (litellmData.error?.message?.includes('already exists')) {
+        // Key alias already exists — delete the old key(s) then recreate fresh.
+        // LiteLLM /key/list returns hashed key IDs; pass them to /key/delete.
+        console.log(`Key alias tenant-${tenantId} exists — deleting and recreating with updated model list`);
+        const listRes  = await fetch(`${litellmKeygenUrl}/key/list?key_alias=tenant-${tenantId}`, { headers: authHeader });
+        const listData = await listRes.json();
+        const keyHashes = listData?.keys || [];
+        if (keyHashes.length > 0) {
+          await fetch(`${litellmKeygenUrl}/key/delete`, {
+            method: 'POST',
+            headers: authHeader,
+            body: JSON.stringify({ keys: keyHashes }),
+          });
+          console.log(`Deleted ${keyHashes.length} old key(s) for tenant ${tenantId}`);
+        }
+        // Now create fresh
+        const retryRes  = await fetch(`${litellmKeygenUrl}/key/generate`, {
+          method: 'POST',
+          headers: authHeader,
+          body: JSON.stringify({
+            key_alias:       `tenant-${tenantId}`,
+            metadata:        { tenant_id: tenantId, plan },
+            models:          ALLOWED_MODELS,
+            max_budget:      plan === 'starter' ? 10 : plan === 'pro' ? 50 : null,
+            budget_duration: 'monthly',
+          }),
+        });
+        const retryData = await retryRes.json();
+        litellmVirtualKey = retryData.key || '';
+        if (litellmVirtualKey) {
+          console.log(`Recreated LiteLLM virtual key for tenant ${tenantId}: ${litellmVirtualKey.slice(0, 12)}...`);
+        } else {
+          console.warn(`LiteLLM key recreation failed for tenant ${tenantId}. Response:`, JSON.stringify(retryData));
+        }
+      } else {
+        console.warn(`LiteLLM key generation returned no key for tenant ${tenantId}. Response:`, JSON.stringify(litellmData));
+      }
     } catch (e) {
       console.warn('LiteLLM key creation failed (will use direct API key):', e.message, e.cause ? JSON.stringify(e.cause) : '');
     }
@@ -272,12 +349,25 @@ async function provision(tenantId, plan = 'starter', countryCode = null) {
           { name: 'SUPABASE_SERVICE_KEY', value: process.env.SUPABASE_SERVICE_KEY },
           { name: 'TARGET_GROUP_ARN',     value: tgArn || '' },
           { name: 'HTTPS_ENDPOINT',       value: httpsEndpoint },
-          // LiteLLM proxy — use VPC-internal URL (LITELLM_INTERNAL_URL) to bypass Cloudflare.
-          // Falls back to LITELLM_URL (public) if internal URL not set.
-          // NEVER use the public domain for container-to-container traffic — Cloudflare returns 403.
-          { name: 'OPENAI_API_BASE',      value: litellmVirtualKey ? (process.env.LITELLM_INTERNAL_URL || process.env.LITELLM_URL) : '' },
-          { name: 'OPENAI_API_KEY',       value: litellmVirtualKey || process.env.OPENAI_API_KEY || '' },
-          { name: 'ANTHROPIC_API_KEY',    value: litellmVirtualKey ? '' : (process.env.ANTHROPIC_API_KEY || '') },
+          // LiteLLM metering architecture (original working design from transcript):
+          //   OPENAI_API_KEY  = real OpenAI key always.
+          //                     OpenClaw's embedded agent calls api.openai.com directly using
+          //                     this env var, ignoring baseUrl. The inline MITM proxy in the
+          //                     entrypoint intercepts those calls and replaces the auth header
+          //                     with LITELLM_VIRTUAL_KEY before forwarding to LiteLLM.
+          //                     If the proxy is down, OpenClaw falls back to api.openai.com
+          //                     with the real key (unmetered but functional).
+          //   OPENAI_API_BASE = LiteLLM internal URL. Belt-and-suspenders for any code path
+          //                     that does respect the base URL.
+          //   LITELLM_VIRTUAL_KEY = per-tenant virtual key. Entrypoint proxy uses this to
+          //                     replace the auth header on intercepted API calls → LiteLLM
+          //                     meters all traffic against this key.
+          //   Direct mode (no virtual key): OPENAI_API_KEY = real key, no proxy started.
+          { name: 'OPENAI_API_BASE',     value: litellmVirtualKey ? (process.env.LITELLM_INTERNAL_URL || process.env.LITELLM_URL) : '' },
+          { name: 'OPENAI_API_KEY',      value: process.env.OPENAI_API_KEY || '' },
+          { name: 'LITELLM_VIRTUAL_KEY', value: litellmVirtualKey || '' },
+          { name: 'ANTHROPIC_API_KEY',   value: litellmVirtualKey ? '' : (process.env.ANTHROPIC_API_KEY || '') },
+          { name: 'TELEGRAM_BOT_TOKEN',  value: telegramBotToken || '' },
         ],
       }],
     },
@@ -342,13 +432,21 @@ async function deprovision(tenantId) {
     console.warn('ECS task not found, continuing cleanup:', e.message);
   }
 
-  // Remove ALB listener rule
-  if (instance.alb_listener_rule_arn) {
-    try {
-      await alb.send(new DeleteRuleCommand({ RuleArn: instance.alb_listener_rule_arn }));
-      console.log('Deleted listener rule');
-    } catch (e) { console.warn('Rule delete skipped:', e.message); }
-  }
+  // Remove ALB listener rule(s) — scan by hostname to catch any duplicates
+  try {
+    const subdomain = `tenant-${tenantId.split('-')[0]}`;
+    const hostname  = `${subdomain}.${process.env.BASE_DOMAIN}`;
+    const { Rules } = await alb.send(new DescribeRulesCommand({ ListenerArn: process.env.ALB_LISTENER_ARN }));
+    const toDelete  = Rules.filter(r =>
+      r.Conditions.some(c => c.HostHeaderConfig?.Values?.includes(hostname))
+    );
+    for (const rule of toDelete) {
+      try {
+        await alb.send(new DeleteRuleCommand({ RuleArn: rule.RuleArn }));
+        console.log(`Deleted listener rule (priority ${rule.Priority})`);
+      } catch (e) { console.warn('Rule delete skipped:', e.message); }
+    }
+  } catch (e) { console.warn('Rule cleanup skipped:', e.message); }
 
   // Delete ALB target group
   if (instance.alb_target_group_arn) {

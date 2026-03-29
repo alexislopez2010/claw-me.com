@@ -457,6 +457,34 @@
   let mustChangePassword = false;
   let redirectUrl = '';
 
+  // ── Admin login mode ──────────────────────────────────────
+  // When the page is loaded with ?redirect=/admin (or /admin/…), it means
+  // the admin-guard Worker sent the user here after finding no valid session.
+  // In that case we hide the instance field (admins don't have a tenant
+  // subdomain) and carry the redirect path through the auth flow.
+  const _params = new URLSearchParams(window.location.search);
+  const _redirectParam = _params.get('redirect') || '';
+  const isAdminLogin = _redirectParam.startsWith('/admin');
+
+  if (isAdminLogin) {
+    // Hide the instance row — not applicable for admin users
+    document.querySelector('.instance-row')?.closest('label')?.previousElementSibling === null;
+    const instanceLabel = document.querySelector('label[for="instance-input"]');
+    const instanceRow   = document.querySelector('.instance-row');
+    if (instanceLabel) instanceLabel.style.display = 'none';
+    if (instanceRow)   instanceRow.style.display   = 'none';
+
+    // Update the subtitle to signal this is an admin login
+    const subtitle = document.querySelector('#step-login .login-subtitle');
+    if (subtitle) subtitle.textContent = 'Admin access — sign in with your operator credentials.';
+
+    // Hide Google OAuth button (admin login is password+MFA only for now)
+    const divider   = document.querySelector('.divider');
+    const btnGoogle = document.getElementById('btn-google');
+    if (divider)   divider.style.display   = 'none';
+    if (btnGoogle) btnGoogle.style.display = 'none';
+  }
+
   // ── Step navigation ──────────────────────────────────────
   function goToStep(stepId) {
     document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
@@ -486,10 +514,13 @@
 
   // ── Password login ──────────────────────────────────────
   async function signInWithPassword() {
-    const subdomain = getSubdomain();
-    if (!subdomain) {
-      showError('login-error', 'Please enter a valid instance name first.');
-      return;
+    // Admin logins don't require an instance subdomain
+    if (!isAdminLogin) {
+      const subdomain = getSubdomain();
+      if (!subdomain) {
+        showError('login-error', 'Please enter a valid instance name first.');
+        return;
+      }
     }
 
     const email = document.getElementById('email-input').value.trim();
@@ -548,11 +579,18 @@
     hideError('mfa-error');
 
     try {
+      // If this is an admin login (?redirect=/admin), pass the redirect path
+      // to claw-auth so it returns the right redirect_url after MFA.
+      const mfaBody = { email: currentEmail, code };
+      if (isAdminLogin && _redirectParam) {
+        mfaBody.redirect_url_override = _redirectParam;
+      }
+
       const res = await fetch(AUTH_API + '/verify-mfa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: currentEmail, code })
+        body: JSON.stringify(mfaBody)
       });
 
       const data = await res.json();
@@ -710,8 +748,31 @@
     if (e.key === 'Enter') changePassword();
   });
 
-  // Auto-focus
-  document.getElementById('instance-input').focus();
+  // Auto-fill from URL params (e.g., from welcome email link)
+  // Supports: ?instance=tenant-abc123  and  ?email=user@example.com
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const instanceParam = params.get('instance');
+    const emailParam    = params.get('email');
+
+    if (instanceParam) {
+      // Clean the value — allow only subdomain-safe characters
+      const cleaned = instanceParam.toLowerCase().replace(/[^a-z0-9-]/g, '');
+      document.getElementById('instance-input').value = cleaned;
+    }
+    if (emailParam) {
+      document.getElementById('email-input').value = decodeURIComponent(emailParam);
+    }
+
+    // Focus the first empty required field
+    if (!instanceParam) {
+      document.getElementById('instance-input').focus();
+    } else if (!emailParam) {
+      document.getElementById('email-input').focus();
+    } else {
+      document.getElementById('password-input').focus();
+    }
+  })();
 </script>
 </body>
 </html>

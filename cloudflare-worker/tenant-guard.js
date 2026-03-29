@@ -93,10 +93,16 @@ export default {
       });
     }
 
-    // Authorized — pass through to origin
-    // Inject the email header so auth-proxy.py (Layer 2) works seamlessly
-    const modifiedRequest = new Request(request);
-    modifiedRequest.headers.set('Cf-Access-Authenticated-User-Email', authedEmail);
+    // Authorized — pass through to origin.
+    // Inject email under BOTH header names to support:
+    //   - Old containers (entrypoint v1-v14): expect "X-Forwarded-User"
+    //   - New containers (entrypoint v15+):   expect "Cf-Access-Authenticated-User-Email"
+    // Must build a new Headers object — mutating an existing Request's headers
+    // is not reliable in Cloudflare Workers (guarded headers).
+    const newHeaders = new Headers(request.headers);
+    newHeaders.set('Cf-Access-Authenticated-User-Email', authedEmail);
+    newHeaders.set('X-Forwarded-User', authedEmail);
+    const modifiedRequest = new Request(request, { headers: newHeaders });
     return fetch(modifiedRequest);
   }
 };

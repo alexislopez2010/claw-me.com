@@ -1,0 +1,22 @@
+name = "admin-guard"
+main = "admin-guard.js"
+compatibility_date = "2024-01-01"
+
+# Protects the admin portal at claw-me.com/admin/*
+# Note: tenant-guard runs on *.claw-me.com/* (subdomains only) and does NOT
+# touch the root domain — this Worker fills that gap for the /admin path.
+routes = [
+  { pattern = "claw-me.com/admin/*", zone_name = "claw-me.com" }
+]
+
+[vars]
+BASE_DOMAIN = "claw-me.com"
+
+# Set these as secrets (one-time setup, never commit values):
+#
+#   npx wrangler secret put JWT_SECRET   --config wrangler-admin.toml
+#   → Use the SAME value as claw-auth and tenant-guard workers
+#
+#   npx wrangler secret put ADMIN_EMAILS --config wrangler-admin.toml
+#   → Comma-separated list of admin email addresses, e.g.:
+#     alexis.hiram@gmail.com,ops@claw-me.com

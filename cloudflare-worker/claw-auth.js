@@ -210,13 +210,15 @@ async function handleGoogleCallback(url, env) {
   const user = users[0];
 
   // Step 4: Look up tenant's instance URL for redirect
+  // Prefer dashboard_url (tokenized — auto-authenticates in OpenClaw) over bare endpoint_url
   const instances = await supabaseGet(
     env,
-    `/rest/v1/instances?tenant_id=eq.${user.tenant_id}&select=endpoint_url&limit=1`
+    `/rest/v1/instances?tenant_id=eq.${user.tenant_id}&select=endpoint_url,dashboard_url&limit=1`
   );
 
   const baseDomain = env.BASE_DOMAIN || 'claw-me.com';
-  const redirectUrl = instances?.[0]?.endpoint_url || `https://${instance}.${baseDomain}`;
+  const inst = instances?.[0];
+  const redirectUrl = inst?.dashboard_url || inst?.endpoint_url || `https://${instance}.${baseDomain}`;
 
   // Step 5: Issue JWT session cookie
   const jwt = await signJwt(env.JWT_SECRET, {
@@ -334,7 +336,9 @@ async function handleLogin(request, env) {
 // ── VERIFY MFA ─────────────────────────────────────────────
 // Check 6-digit code, issue JWT session cookie
 async function handleVerifyMfa(request, env) {
-  const { email, code } = await request.json();
+  // redirect_url_override: optional field from login page when ?redirect= is set
+  // (e.g. /admin). Validated against BASE_DOMAIN before use — prevents open redirect.
+  const { email, code, redirect_url_override } = await request.json();
 
   if (!email || !code) {
     return jsonResponse({ error: 'Email and code are required' }, 400);
@@ -389,12 +393,30 @@ async function handleVerifyMfa(request, env) {
   const user = users[0];
 
   // Look up tenant's instance URL for redirect
+  // Prefer dashboard_url (tokenized — auto-authenticates in OpenClaw) over bare endpoint_url
   const instances = await supabaseGet(
     env,
-    `/rest/v1/instances?tenant_id=eq.${user.tenant_id}&select=endpoint_url&limit=1`
+    `/rest/v1/instances?tenant_id=eq.${user.tenant_id}&select=endpoint_url,dashboard_url&limit=1`
   );
 
-  const redirectUrl = instances?.[0]?.endpoint_url || 'https://claw-me.com';
+  const inst = instances?.[0];
+  let redirectUrl = inst?.dashboard_url || inst?.endpoint_url || `https://${baseDomain}`;
+
+  // If the login page passed a redirect_url_override (e.g. from ?redirect=/admin),
+  // use it — but ONLY if it resolves to the same BASE_DOMAIN to prevent open redirect.
+  if (redirect_url_override) {
+    try {
+      const overrideUrl = redirect_url_override.startsWith('/')
+        ? `https://${baseDomain}${redirect_url_override}`
+        : redirect_url_override;
+      const parsed = new URL(overrideUrl);
+      if (parsed.hostname === baseDomain || parsed.hostname.endsWith(`.${baseDomain}`)) {
+        redirectUrl = overrideUrl;
+      }
+    } catch (_) {
+      // Invalid URL — ignore and use default redirect
+    }
+  }
 
   // Issue JWT
   const jwt = await signJwt(env.JWT_SECRET, {

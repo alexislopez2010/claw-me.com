@@ -17,15 +17,24 @@
 | `deploy-v12.sh` | (Legacy) **Contains secrets.** |
 | `openclaw.json.template` | Legacy template (superseded by Python config generation in entrypoint.sh). |
 
-## Current State (March 22, 2026)
+## Current State (March 25, 2026)
 
 - **ECR image:** `:v15` — dual-layer tenant security (Cloudflare Worker + container auth proxy)
-- **Task definition:** `openclaw-task:53` (2048 CPU / 4096 memory)
-- **Lambda:** `claw-me-provision-instance` points to `:53`
-- **Auth header:** `Cf-Access-Authenticated-User-Email` (from Cloudflare Access Google OAuth)
-- **Auth proxy:** `auth-proxy.py` on port 18789 → OpenClaw on port 18790
+- **Task definition:** `openclaw-task:54` (2048 CPU / 4096 memory) — wrapper that calls `paste-token` before entrypoint.sh
+- **Lambda:** `claw-me-provision-instance` points to `:54`
+- **Auth headers:** `Cf-Access-Authenticated-User-Email` AND `X-Forwarded-User` — both injected by `tenant-guard` Worker for backward compat with old/new containers
+- **Auth proxy:** `auth-proxy.py` on port 18789 → OpenClaw on port 18790 (in updated entrypoint; old ECR `:v15` image may not start it)
+- **Post-login redirect:** `claw-auth` Worker redirects to `instances.dashboard_url` (tokenized URL with `#token=`) after successful login
 - **Channels:** Telegram, WhatsApp, Discord, Slack — all `enabled: true`, tenants configure tokens from dashboard
-- **Legacy:** `:v12`/`:v13`/`:v14` images and task defs `:46`–`:52` are deprecated.
+- **Legacy:** `:v12`/`:v13`/`:v14` images and task defs `:46`–`:53` are deprecated.
+
+### Task Definition History
+
+| Task Def | Image | Notes |
+|----------|-------|-------|
+| `:53` | `:v15` (old) | Missing `paste-token` in entrypoint — OpenAI API key not written to auth-profiles.json |
+| `:54` | `:v15` (old) | **Current** — wrapper downloads `s3://claw-me-config-204128836886/wrapper-entrypoint.sh`, runs paste-token, then calls entrypoint.sh |
+| _`:55`_ | _`:v16` (pending)_ | _Rebuild Docker image with updated entrypoint.sh (paste-token + TENANT_OWNER_EMAILS + all channels) — requires Docker on Mac_ |
 
 ### Deploying Updates
 
@@ -101,6 +110,10 @@ When `OPENAI_API_BASE` is set, the config includes:
 
 - **CloudMap DNS may not resolve** from standalone Fargate tasks. Lambda uses `LITELLM_INTERNAL_URL` but this may time out. Hardcoded IP works as fallback.
 - **Cloudflare blocks container-to-container traffic** via public domain. NEVER use `https://litellm.claw-me.com` as `OPENAI_API_BASE`.
-- **v12 sed overrides break channels page.** Task defs `:46`–`:50` use entrypoint `sed` patches. The WhatsApp sed replaces the Telegram line instead of appending. **Fix: use v15.**
+- **v12 sed overrides break channels page.** Task defs `:46`–`:50` use entrypoint `sed` patches. The WhatsApp sed replaces the Telegram line instead of appending. **Fix: use :54.**
 - **WhatsApp 401 Unauthorized on QR peering.** Under investigation.
 - **`trusted_proxy_user_missing` for CLI health checks.** Internal cron health check fails because CLI doesn't send the email header. Cosmetic — gateway still works for webchat clients.
+- **`dashboard_url` PATCH silently fails.** `entrypoint.sh` logs "Stored dashboard URL in Supabase" regardless of HTTP response code (curl exits 0 on 4xx/5xx). If `dashboard_url` is NULL after provisioning, read the tokenized URL from CloudWatch logs and PATCH Supabase manually. See ARCHITECTURE.md troubleshooting section.
+- **Old containers use `X-Forwarded-User`.** Containers built from v14 and earlier images configure `trustedProxy.userHeader: "X-Forwarded-User"` instead of `Cf-Access-Authenticated-User-Email`. The `tenant-guard` Worker now injects both headers, so all container generations work without rebuilding.
+- **ECR `:v15` image missing `paste-token` step.** The ECR image in production was built before `paste-token` was added to `entrypoint.sh`. Containers started from the old image don't write `auth-profiles.json`, so OpenAI API calls fail with "No API key found". **Fix applied:** task def `:54` uses a wrapper that downloads `s3://claw-me-config-204128836886/wrapper-entrypoint.sh` and calls `paste-token` before `entrypoint.sh`. **Permanent fix:** rebuild Docker image (requires Mac) — the local `entrypoint.sh` has the correct `paste-token` step.
+- **ECS Exec requires a real TTY.** `aws ecs execute-command --interactive` does not work in headless environments (no TTY). The `ExecuteCommandAgent` appears RUNNING but no SSM session is ever established. Workaround: run operations via task def overrides (see Task Definition History above).
