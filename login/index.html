@@ -12,15 +12,15 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #070e1b;
-      --surface:  #0d1829;
-      --border:   #1c2e47;
-      --accent:   #0ea5e9;
-      --accent2:  #38bdf8;
-      --text:     #e2e8f2;
-      --muted:    #7c8faa;
-      --success:  #22c55e;
-      --error:    #ef4444;
+      --bg:       #F9F7F4;
+      --surface:  #FFFFFF;
+      --border:   #E8E3DC;
+      --accent:   #DC2626;
+      --accent2:  #B91C1C;
+      --text:     #111111;
+      --muted:    #6B6560;
+      --success:  #16a34a;
+      --error:    #DC2626;
     }
     html, body {
       height: 100%;
@@ -30,38 +30,22 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Starfield */
+    /* Subtle warm glow */
     body::before {
       content: '';
       position: fixed; inset: 0; z-index: 0;
-      background-image:
-        radial-gradient(1px 1px at 15% 12%, rgba(255,255,255,0.18) 0%, transparent 100%),
-        radial-gradient(1px 1px at 38% 7%,  rgba(255,255,255,0.12) 0%, transparent 100%),
-        radial-gradient(1px 1px at 60% 22%, rgba(255,255,255,0.15) 0%, transparent 100%),
-        radial-gradient(1px 1px at 82% 5%,  rgba(255,255,255,0.10) 0%, transparent 100%),
-        radial-gradient(1px 1px at 5%  40%, rgba(255,255,255,0.08) 0%, transparent 100%),
-        radial-gradient(1px 1px at 90% 35%, rgba(255,255,255,0.14) 0%, transparent 100%),
-        radial-gradient(1px 1px at 72% 60%, rgba(255,255,255,0.09) 0%, transparent 100%),
-        radial-gradient(1px 1px at 25% 75%, rgba(255,255,255,0.12) 0%, transparent 100%);
+      background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(220,38,38,0.05) 0%, transparent 65%);
       pointer-events: none;
     }
 
-    /* Radial glow */
-    body::after {
-      content: '';
-      position: fixed; inset: 0; z-index: 0;
-      background:
-        radial-gradient(ellipse 70% 55% at 50% 0%, rgba(14,165,233,0.09) 0%, transparent 65%),
-        radial-gradient(ellipse 40% 30% at 50% 100%, rgba(14,165,233,0.04) 0%, transparent 60%);
-      pointer-events: none;
-    }
+    body::after { display: none; }
 
     /* Nav */
     .top-bar {
       position: fixed; top: 0; left: 0; right: 0; z-index: 10;
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 32px; height: 56px;
-      background: rgba(7,14,27,0.7); backdrop-filter: blur(10px);
+      background: rgba(249,247,244,0.88); backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border);
     }
     .logo { display: flex; align-items: center; text-decoration: none; }
@@ -91,6 +75,7 @@
       padding: 48px 40px;
       max-width: 440px;
       width: 100%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
     }
     .login-logo {
       width: 72px; height: 72px;
@@ -116,7 +101,7 @@
     }
     .form-input {
       width: 100%;
-      background: transparent;
+      background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 14px 16px;
@@ -128,7 +113,7 @@
       margin-bottom: 16px;
     }
     .form-input:focus { border-color: var(--accent); }
-    .form-input::placeholder { color: var(--muted); opacity: 0.6; }
+    .form-input::placeholder { color: #C0B9B2; }
 
     /* Instance row (for subdomain input) */
     .instance-row {
@@ -145,7 +130,7 @@
     }
     .instance-suffix {
       display: flex; align-items: center;
-      background: rgba(14,165,233,0.08);
+      background: rgba(220,38,38,0.06);
       padding: 0 14px;
       font-size: 0.88rem; font-weight: 600;
       color: var(--accent); white-space: nowrap;
@@ -165,7 +150,7 @@
     .btn-primary:hover {
       background: var(--accent2);
       transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(14,165,233,0.35);
+      box-shadow: 0 6px 20px rgba(220,38,38,0.3);
     }
     .btn-primary:disabled {
       opacity: 0.5; cursor: not-allowed;
@@ -296,7 +281,7 @@
       position: fixed; bottom: 0; left: 0; right: 0;
       text-align: center; padding: 14px;
       font-size: 0.78rem; color: var(--muted);
-      background: rgba(7,14,27,0.6); backdrop-filter: blur(8px);
+      background: rgba(249,247,244,0.92); backdrop-filter: blur(8px);
       border-top: 1px solid var(--border);
       z-index: 5;
     }
@@ -315,7 +300,7 @@
 <!-- Top bar -->
 <div class="top-bar">
   <a href="/" class="logo">
-    <img src="/assets/logo-lockup-white.svg" alt="Claw-Me" />
+    <img src="/assets/logo-lockup.svg" alt="Claw-Me" />
   </a>
   <a href="mailto:hello@claw-me.com" class="top-link">hello@claw-me.com</a>
 </div>

@@ -11,13 +11,13 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #070e1b;
-      --surface:  #0d1829;
-      --border:   #1c2e47;
-      --accent:   #0ea5e9;
-      --accent2:  #38bdf8;
-      --text:     #e2e8f2;
-      --muted:    #7c8faa;
+      --bg:       #F9F7F4;
+      --surface:  #FFFFFF;
+      --border:   #E8E3DC;
+      --accent:   #DC2626;
+      --accent2:  #B91C1C;
+      --text:     #111111;
+      --muted:    #6B6560;
     }
     html, body {
       height: 100%;
@@ -29,21 +29,7 @@
     body::before {
       content: '';
       position: fixed; inset: 0; z-index: 0;
-      background-image:
-        radial-gradient(1px 1px at 15% 12%, rgba(255,255,255,0.18) 0%, transparent 100%),
-        radial-gradient(1px 1px at 38% 7%,  rgba(255,255,255,0.12) 0%, transparent 100%),
-        radial-gradient(1px 1px at 60% 22%, rgba(255,255,255,0.15) 0%, transparent 100%),
-        radial-gradient(1px 1px at 82% 5%,  rgba(255,255,255,0.10) 0%, transparent 100%),
-        radial-gradient(1px 1px at 5%  40%, rgba(255,255,255,0.08) 0%, transparent 100%),
-        radial-gradient(1px 1px at 90% 35%, rgba(255,255,255,0.14) 0%, transparent 100%);
-      pointer-events: none;
-    }
-    body::after {
-      content: '';
-      position: fixed; inset: 0; z-index: 0;
-      background:
-        radial-gradient(ellipse 70% 55% at 50% 0%, rgba(14,165,233,0.11) 0%, transparent 65%),
-        radial-gradient(ellipse 40% 30% at 50% 100%, rgba(14,165,233,0.05) 0%, transparent 60%);
+      background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(220,38,38,0.06) 0%, transparent 65%);
       pointer-events: none;
     }
     .page {
@@ -58,15 +44,14 @@
       position: fixed; top: 0; left: 0; right: 0; z-index: 10;
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 32px; height: 56px;
-      background: rgba(13,15,20,0.7); backdrop-filter: blur(10px);
+      background: rgba(249,247,244,0.88); backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border);
     }
     .logo { display: flex; align-items: center; text-decoration: none; }
     .logo img { height: 32px; width: auto; display: block; }
-    .logo-accent { color: var(--accent); }
     .success-icon {
       width: 96px; height: 96px; border-radius: 50%;
-      background: rgba(14,165,233,0.12); border: 2px solid rgba(14,165,233,0.35);
+      background: rgba(220,38,38,0.08); border: 2px solid rgba(220,38,38,0.25);
       display: flex; align-items: center; justify-content: center;
       margin-bottom: 28px;
       animation: pop 0.4s ease-out;
@@ -80,9 +65,9 @@
     h1 {
       font-size: 2.2rem; font-weight: 800; margin-bottom: 12px;
       font-family: 'Outfit', 'Inter', sans-serif;
-      background: linear-gradient(135deg, var(--text) 0%, var(--accent2) 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      color: var(--text);
     }
+    h1 .red { color: var(--accent); }
     .subtitle {
       font-size: 1.05rem; color: var(--muted); line-height: 1.6;
       max-width: 520px; margin-bottom: 36px;
@@ -95,6 +80,7 @@
       display: flex; align-items: flex-start; gap: 14px;
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 12px; padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     }
     .step-num {
       min-width: 28px; height: 28px; border-radius: 50%;
@@ -114,32 +100,41 @@
     }
     .btn-login:hover {
       background: var(--accent2);
-      box-shadow: 0 4px 20px rgba(14,165,233,0.35);
+      box-shadow: 0 4px 20px rgba(220,38,38,0.3);
     }
     .note {
       margin-top: 24px; font-size: 0.82rem; color: var(--muted); max-width: 400px;
     }
     .spinner {
       display: inline-block; width: 18px; height: 18px;
-      border: 2px solid rgba(14,165,233,0.3); border-top-color: var(--accent);
+      border: 2px solid rgba(220,38,38,0.2); border-top-color: var(--accent);
       border-radius: 50%; animation: spin 0.8s linear infinite;
       margin-right: 6px; vertical-align: middle;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .status {
-      margin-top: 20px; font-size: 0.88rem; color: var(--accent2);
+      margin-top: 20px; font-size: 0.88rem; color: var(--accent);
     }
+    .page-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      text-align: center; padding: 14px;
+      font-size: 0.78rem; color: var(--muted);
+      background: rgba(249,247,244,0.92); backdrop-filter: blur(8px);
+      border-top: 1px solid var(--border);
+    }
+    .page-footer a { color: var(--muted); text-decoration: none; }
+    .page-footer a:hover { color: var(--accent); }
   </style>
 </head>
 <body>
 
 <nav class="top-bar">
-  <a href="/" class="logo"><img src="/assets/logo-lockup-white.svg" alt="Claw-Me" /></a>
+  <a href="/" class="logo"><img src="/assets/logo-lockup.svg" alt="Claw-Me" /></a>
 </nav>
 
 <main class="page">
-  <div class="success-icon"><img src="/assets/logo-mark-white.svg" alt="Claw-Me" width="64" height="64" /></div>
-  <h1>You're in.</h1>
+  <div class="success-icon"><img src="/assets/logo-mark.svg" alt="Claw-Me" width="64" height="64" /></div>
+  <h1>You're in<span class="red">.</span></h1>
   <p class="subtitle">
     Payment confirmed. Your dedicated AI agent is being set up right now —
     this usually takes about 60 seconds.
@@ -176,6 +171,11 @@
     <a href="mailto:hello@claw-me.com" style="color:var(--accent)">hello@claw-me.com</a>.
   </p>
 </main>
+
+<div class="page-footer">
+  © 2026 claw-me.com &nbsp;·&nbsp;
+  <a href="mailto:hello@claw-me.com">hello@claw-me.com</a>
+</div>
 
 </body>
 </html>

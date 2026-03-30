@@ -3,26 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Claw-Me — Your own AI employee, dedicated and always on</title>
-  <meta name="description" content="Stop spending your day on work that should be automated. Claw-Me gives your business a private, dedicated AI agent — cloud-hosted, always on, and ready to handle the tasks eating your time." />
+  <title>Claw-Me — Claw Back Your Time</title>
+  <meta name="description" content="An AI employee that automates the work you need to do but don't have the time to do. Get time back in your day by owning your AI employee that runs 24/7." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-  <meta property="og:title" content="Claw-Me — Your own AI employee" />
-  <meta property="og:description" content="A private, dedicated AI agent for your business — cloud-hosted, always on." />
+  <meta property="og:title" content="Claw-Me — Claw Back Your Time" />
+  <meta property="og:description" content="An AI employee that automates the work you need to do but don't have the time to do." />
   <meta property="og:image" content="https://claw-me.com/assets/og-image.svg" />
   <meta property="og:type" content="website" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #070e1b;
-      --surface:  #0d1829;
-      --border:   #1c2e47;
-      --accent:   #0ea5e9;
-      --accent2:  #38bdf8;
-      --text:     #e2e8f2;
-      --muted:    #7c8faa;
+      --bg:       #F9F7F4;
+      --surface:  #FFFFFF;
+      --border:   #E8E3DC;
+      --accent:   #DC2626;
+      --accent2:  #B91C1C;
+      --text:     #111111;
+      --muted:    #6B6560;
     }
     html, body {
       height: 100%;
@@ -32,31 +32,27 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Starfield background ── */
+    /* ── Subtle grain texture ── */
     body::before {
       content: '';
       position: fixed; inset: 0; z-index: 0;
       background-image:
-        radial-gradient(1px 1px at 15% 12%, rgba(255,255,255,0.18) 0%, transparent 100%),
-        radial-gradient(1px 1px at 38% 7%,  rgba(255,255,255,0.12) 0%, transparent 100%),
-        radial-gradient(1px 1px at 60% 22%, rgba(255,255,255,0.15) 0%, transparent 100%),
-        radial-gradient(1px 1px at 82% 5%,  rgba(255,255,255,0.10) 0%, transparent 100%),
-        radial-gradient(1px 1px at 5%  40%, rgba(255,255,255,0.08) 0%, transparent 100%),
-        radial-gradient(1px 1px at 90% 35%, rgba(255,255,255,0.14) 0%, transparent 100%),
-        radial-gradient(1px 1px at 72% 60%, rgba(255,255,255,0.09) 0%, transparent 100%),
-        radial-gradient(1px 1px at 25% 75%, rgba(255,255,255,0.12) 0%, transparent 100%),
-        radial-gradient(1px 1px at 50% 88%, rgba(255,255,255,0.07) 0%, transparent 100%),
-        radial-gradient(1px 1px at 10% 90%, rgba(255,255,255,0.11) 0%, transparent 100%);
+        radial-gradient(1px 1px at 20% 15%, rgba(0,0,0,0.04) 0%, transparent 100%),
+        radial-gradient(1px 1px at 55% 8%,  rgba(0,0,0,0.03) 0%, transparent 100%),
+        radial-gradient(1px 1px at 75% 30%, rgba(0,0,0,0.04) 0%, transparent 100%),
+        radial-gradient(1px 1px at 10% 50%, rgba(0,0,0,0.03) 0%, transparent 100%),
+        radial-gradient(1px 1px at 88% 65%, rgba(0,0,0,0.04) 0%, transparent 100%),
+        radial-gradient(1px 1px at 40% 85%, rgba(0,0,0,0.03) 0%, transparent 100%);
       pointer-events: none;
     }
 
-    /* ── Radial glow ── */
+    /* ── Warm radial glow ── */
     body::after {
       content: '';
       position: fixed; inset: 0; z-index: 0;
       background:
-        radial-gradient(ellipse 70% 55% at 50% 0%,   rgba(14,165,233,0.11) 0%, transparent 65%),
-        radial-gradient(ellipse 40% 30% at 50% 100%, rgba(14,165,233,0.05) 0%, transparent 60%);
+        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(220,38,38,0.06) 0%, transparent 65%),
+        radial-gradient(ellipse 50% 35% at 50% 100%, rgba(220,38,38,0.03) 0%, transparent 60%);
       pointer-events: none;
     }
 
@@ -75,7 +71,7 @@
       position: fixed; top: 0; left: 0; right: 0; z-index: 10;
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 32px; height: 56px;
-      background: rgba(7,14,27,0.7); backdrop-filter: blur(10px);
+      background: rgba(249,247,244,0.88); backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border);
     }
     .logo {
@@ -83,7 +79,6 @@
       text-decoration: none;
     }
     .logo img { height: 32px; width: auto; display: block; }
-    .logo-accent { color: var(--accent); }
     .top-link {
       font-size: 0.82rem; color: var(--muted); font-weight: 500;
       transition: color 0.2s; text-decoration: none;
@@ -94,25 +89,25 @@
     }
     .btn-login {
       display: inline-flex; align-items: center; gap: 6px;
-      background: transparent; border: 1px solid var(--accent);
-      border-radius: 8px; padding: 6px 14px;
-      font-size: 0.82rem; font-weight: 600; color: var(--accent);
+      background: var(--accent); border: none;
+      border-radius: 8px; padding: 7px 16px;
+      font-size: 0.82rem; font-weight: 700; color: #fff;
       text-decoration: none; cursor: pointer;
-      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+      transition: background 0.2s, box-shadow 0.2s;
       font-family: inherit;
     }
     .btn-login:hover {
-      background: var(--accent); color: #fff;
-      box-shadow: 0 4px 14px rgba(14,165,233,0.3);
+      background: var(--accent2);
+      box-shadow: 0 4px 14px rgba(220,38,38,0.3);
     }
 
     /* ── Badge ── */
     .badge {
       display: inline-flex; align-items: center; gap: 7px;
-      background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.3);
+      background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.2);
       padding: 5px 15px; border-radius: 999px;
-      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--accent2);
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--accent);
       margin-bottom: 32px;
     }
     .badge-dot {
@@ -133,7 +128,7 @@
     }
     .mascot-ring {
       position: absolute; inset: -20px;
-      border: 1.5px dashed rgba(14,165,233,0.22);
+      border: 1.5px dashed rgba(220,38,38,0.2);
       border-radius: 50%;
       animation: spin 22s linear infinite;
     }
@@ -146,7 +141,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .mascot-glow {
       position: absolute; inset: -30px;
-      background: radial-gradient(circle, rgba(14,165,233,0.18) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(220,38,38,0.1) 0%, transparent 70%);
       border-radius: 50%;
       animation: pulse 3s ease-in-out infinite;
     }
@@ -161,12 +156,13 @@
       font-family: 'Outfit', 'Inter', sans-serif;
       font-weight: 900; letter-spacing: -0.04em;
       line-height: 1.05; margin-bottom: 20px;
+      color: var(--text);
     }
-    h1 .line2 { color: var(--accent); display: block; }
+    h1 .red { color: var(--accent); }
     .subtitle {
-      font-size: clamp(1rem, 2.2vw, 1.18rem);
-      color: var(--muted); max-width: 520px;
-      margin: 0 auto 48px; line-height: 1.7;
+      font-size: clamp(1rem, 2.2vw, 1.12rem);
+      color: var(--muted); max-width: 540px;
+      margin: 0 auto 48px; line-height: 1.75;
     }
 
     /* ── Countdown ── */
@@ -179,6 +175,7 @@
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 12px; padding: 20px 28px;
       min-width: 90px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
     }
     .count-num {
       font-size: 2.8rem; font-weight: 900; letter-spacing: -0.05em;
@@ -210,8 +207,9 @@
       border-radius: 10px; padding: 13px 16px; font-size: 0.95rem;
       color: var(--text); outline: none; transition: border-color 0.2s;
       font-family: inherit;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
-    .form-input::placeholder { color: var(--muted); }
+    .form-input::placeholder { color: #C0B9B2; }
     .form-input:focus { border-color: var(--accent); }
     .btn-submit {
       background: var(--accent); color: #fff;
@@ -222,17 +220,16 @@
     }
     .btn-submit:hover {
       background: var(--accent2); transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(14,165,233,0.35);
+      box-shadow: 0 6px 20px rgba(220,38,38,0.3);
     }
     .form-note {
       font-size: 0.75rem; color: var(--muted); margin-top: 10px;
     }
-    /* Success state */
     .success-msg {
       display: none; align-items: center; justify-content: center; gap: 8px;
-      background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.3);
+      background: rgba(220,38,38,0.07); border: 1px solid rgba(220,38,38,0.2);
       border-radius: 10px; padding: 14px 20px;
-      font-size: 0.92rem; font-weight: 600; color: var(--accent2);
+      font-size: 0.92rem; font-weight: 600; color: var(--accent);
     }
 
     /* ── Early access divider ── */
@@ -250,7 +247,7 @@
     .btn-early-access {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       background: transparent;
-      border: 1px solid var(--accent); border-radius: 10px;
+      border: 1.5px solid var(--accent); border-radius: 10px;
       padding: 13px 28px; width: 100%; max-width: 480px;
       font-size: 0.95rem; font-weight: 700; color: var(--accent);
       text-decoration: none; cursor: pointer;
@@ -260,7 +257,7 @@
     .btn-early-access:hover {
       background: var(--accent); color: #fff;
       transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(14,165,233,0.35);
+      box-shadow: 0 6px 20px rgba(220,38,38,0.25);
     }
 
     /* ── Feature pills ── */
@@ -273,9 +270,9 @@
       background: var(--surface); border: 1px solid var(--border);
       padding: 8px 16px; border-radius: 999px;
       font-size: 0.82rem; font-weight: 500; color: var(--muted);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .pill .icon { font-size: 1rem; }
-    .pill .icon-img { width: 18px; height: 18px; filter: invert(1) brightness(1.5); opacity: 0.8; flex-shrink: 0; }
+    .pill .icon-img { width: 18px; height: 18px; opacity: 0.65; flex-shrink: 0; }
 
     /* ── Social / share ── */
     .social-row {
@@ -289,6 +286,7 @@
       font-size: 0.82rem; font-weight: 600; color: var(--muted);
       text-decoration: none; transition: border-color 0.2s, color 0.2s;
       cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     .social-btn:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -297,7 +295,7 @@
       position: fixed; bottom: 0; left: 0; right: 0;
       text-align: center; padding: 14px;
       font-size: 0.78rem; color: var(--muted);
-      background: rgba(7,14,27,0.6); backdrop-filter: blur(8px);
+      background: rgba(249,247,244,0.92); backdrop-filter: blur(8px);
       border-top: 1px solid var(--border);
     }
     .page-footer a { color: var(--muted); text-decoration: none; }
@@ -311,7 +309,7 @@
       text-align: center; margin-bottom: 32px;
     }
     .pricing-header h2 {
-      font-size: 1.8rem; font-weight: 800; margin-bottom: 8px;
+      font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; color: var(--text);
     }
     .pricing-header p {
       font-size: 0.95rem; color: var(--muted);
@@ -338,22 +336,23 @@
     .price-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
       padding: 28px 24px; display: flex; flex-direction: column; position: relative;
-      transition: border-color 0.2s, transform 0.2s;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-    .price-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .price-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(220,38,38,0.1); }
     .price-card.popular { border-color: var(--accent); }
     .popular-tag {
       position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
       background: var(--accent); color: #fff; font-size: 0.7rem; font-weight: 700;
       padding: 3px 12px; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.05em;
     }
-    .price-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+    .price-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; color: var(--text); }
     .price-card .price-desc { font-size: 0.82rem; color: var(--muted); margin-bottom: 18px; line-height: 1.4; }
     .price-amount {
-      font-size: 2.4rem; font-weight: 800; margin-bottom: 4px;
+      font-size: 2.4rem; font-weight: 800; margin-bottom: 4px; color: var(--text);
     }
     .price-amount span { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
-    .price-annual-note { font-size: 0.75rem; color: var(--accent2); margin-bottom: 20px; height: 16px; }
+    .price-annual-note { font-size: 0.75rem; color: var(--accent); margin-bottom: 20px; height: 16px; }
     .price-features {
       list-style: none; flex: 1; margin-bottom: 24px;
     }
@@ -372,8 +371,8 @@
       text-decoration: none;
     }
     .price-btn-primary { background: var(--accent); color: #fff; }
-    .price-btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(14,165,233,0.3); }
-    .price-btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .price-btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(220,38,38,0.3); }
+    .price-btn-outline { background: transparent; color: var(--text); border: 1.5px solid var(--border); }
     .price-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
 
     /* ── Responsive ── */
@@ -383,7 +382,7 @@
       .count-block { padding: 16px 18px; min-width: 72px; }
       .count-num { font-size: 2.2rem; }
       .top-bar-right { gap: 10px; }
-      .btn-login { padding: 5px 10px; font-size: 0.75rem; }
+      .btn-login { padding: 6px 12px; font-size: 0.78rem; }
       .top-link { display: none; }
       .btn-early-access { padding: 13px 16px; font-size: 0.88rem; }
       .pricing-grid { grid-template-columns: 1fr; max-width: 380px; margin: 0 auto; }
@@ -395,8 +394,8 @@
     /* ── Telegram setup modal ── */
     .modal-overlay {
       position: fixed; inset: 0; z-index: 100;
-      background: rgba(0,0,0,0.78);
-      backdrop-filter: blur(5px);
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(4px);
       display: flex; align-items: center; justify-content: center;
       padding: 24px;
       opacity: 0; pointer-events: none;
@@ -415,6 +414,7 @@
       transform: translateY(24px);
       transition: transform 0.25s cubic-bezier(.22,.68,0,1.2);
       text-align: center;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.12);
     }
     .modal-overlay.open .modal { transform: translateY(0); }
     .modal-close {
@@ -450,7 +450,7 @@
     }
     .modal-steps li strong { color: var(--text); }
     .modal-steps code {
-      background: rgba(255,255,255,0.07);
+      background: rgba(0,0,0,0.06);
       border-radius: 4px; padding: 1px 5px;
       font-size: 0.8rem; font-family: 'Courier New', monospace;
       color: var(--accent2);
@@ -469,7 +469,7 @@
       margin-bottom: 6px;
     }
     .modal-token-input:focus { outline: none; border-color: var(--accent); }
-    .modal-token-input::placeholder { color: #444c60; font-family: 'Courier New', monospace; }
+    .modal-token-input::placeholder { color: #C0B9B2; font-family: 'Courier New', monospace; }
     .modal-token-input.error { border-color: var(--accent); }
     .modal-error {
       font-size: 0.78rem; color: var(--accent);
@@ -481,16 +481,17 @@
       width: 100%;
       display: inline-flex; align-items: center; justify-content: center;
       gap: 8px;
-      background: linear-gradient(135deg, var(--accent), #e03b1a);
+      background: var(--accent);
       color: #fff;
       border: none; border-radius: 10px;
       padding: 14px 24px;
       font-size: 0.95rem; font-weight: 700;
       cursor: pointer; font-family: inherit; letter-spacing: -0.01em;
-      transition: box-shadow 0.2s, opacity 0.2s;
+      transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
     }
     .btn-modal-submit:hover:not(:disabled) {
-      box-shadow: 0 6px 22px rgba(14,165,233,0.4);
+      background: var(--accent2);
+      box-shadow: 0 6px 22px rgba(220,38,38,0.35);
     }
     .btn-modal-submit:disabled { opacity: 0.55; cursor: not-allowed; }
     .modal-divider {
@@ -500,7 +501,7 @@
       font-size: 0.8rem; color: var(--muted);
     }
     .modal-botfather-link a {
-      color: var(--accent2); text-decoration: none; font-weight: 600;
+      color: var(--accent); text-decoration: none; font-weight: 600;
     }
     .modal-botfather-link a:hover { text-decoration: underline; }
     .modal-get-telegram {
@@ -508,7 +509,7 @@
       margin: -14px 0 18px; line-height: 1.6;
     }
     .modal-get-telegram a {
-      color: var(--accent2); text-decoration: none; font-weight: 600;
+      color: var(--accent); text-decoration: none; font-weight: 600;
     }
     .modal-get-telegram a:hover { text-decoration: underline; }
     .modal-example {
@@ -521,7 +522,7 @@
 <!-- Top bar -->
 <div class="top-bar">
   <a href="/" class="logo">
-    <img src="/assets/logo-lockup-white.svg" alt="Claw-Me" />
+    <img src="/assets/logo-lockup.svg" alt="Claw-Me" />
   </a>
   <div class="top-bar-right">
     <a href="#pricing" class="top-link">Pricing</a>
@@ -536,7 +537,7 @@
   <!-- Badge -->
   <div class="badge">
     <span class="badge-dot"></span>
-    Dedicated AI automation — Launching soon
+    Your own AI employee &mdash; Launching soon
   </div>
 
   <!-- Logo mark hero -->
@@ -548,13 +549,11 @@
 
   <!-- Headline -->
   <h1>
-    Your own AI employee<br/>
-    <span class="line2">is almost here.</span>
+    Claw Back Your Time<span class="red">.</span>
   </h1>
   <p class="subtitle">
-    Stop spending your day on work that should be automated. Claw-Me gives
-    your business a private, dedicated AI agent — cloud-hosted, always on,
-    and ready to handle the tasks eating your time.
+    An AI employee that automates the work you need to do but don't have the time to do.
+    Get time back in your day by owning your AI employee that runs 24/7.
   </p>
 
   <!-- Countdown -->
@@ -626,7 +625,7 @@
     <div class="pricing-toggle">
       <span class="active" id="toggle-monthly">Monthly</span>
       <div class="toggle-switch" id="billing-toggle" onclick="toggleBilling()"></div>
-      <span id="toggle-annual">Annual <span style="color:var(--accent2);font-size:0.75rem">(save 20%)</span></span>
+      <span id="toggle-annual">Annual <span style="color:var(--accent);font-size:0.75rem">(save 20%)</span></span>
     </div>
 
     <div class="pricing-grid">
@@ -684,10 +683,10 @@
   </section>
 
   <!-- Social share -->
-  <div class="social-row">
+  <div class="social-row" style="margin-top:48px;">
     <span class="social-label">Spread the claw:</span>
     <a class="social-btn"
-       href="https://twitter.com/intent/tweet?text=Your+own+AI+employee%2C+dedicated+and+always+on+%F0%9F%A6%9E+Claw-Me+is+almost+here+%E2%80%94+claw-me.com"
+       href="https://twitter.com/intent/tweet?text=Claw+Back+Your+Time+%F0%9F%A6%9E+Your+own+AI+employee+that+runs+24%2F7+%E2%80%94+claw-me.com"
        target="_blank" rel="noopener">
       𝕏 Share on X
     </a>
@@ -746,7 +745,6 @@
 
 <script>
   // ── Countdown timer ──
-  // Target: 30 days from page load (replace with your real launch date)
   const LAUNCH = new Date('2026-04-17T09:00:00');
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -783,12 +781,11 @@
     const email  = input.value.trim();
     const re     = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!re.test(email)) {
-      input.style.borderColor = '#ff4c29';
+      input.style.borderColor = '#DC2626';
       input.focus();
       return;
     }
 
-    // Disable button while submitting
     btn.disabled    = true;
     btn.textContent = 'Submitting…';
 
@@ -803,32 +800,26 @@
       body: JSON.stringify({ email: email })
     })
     .then(res => {
-      if (res.ok || res.status === 201) {
-        document.getElementById('form-row').style.display    = 'none';
-        document.getElementById('success-msg').style.display = 'flex';
-      } else if (res.status === 409) {
-        // Duplicate email — still show success
+      if (res.ok || res.status === 201 || res.status === 409) {
         document.getElementById('form-row').style.display    = 'none';
         document.getElementById('success-msg').style.display = 'flex';
       } else {
         btn.disabled    = false;
         btn.textContent = 'Notify Me';
-        input.style.borderColor = '#ff4c29';
+        input.style.borderColor = '#DC2626';
       }
     })
     .catch(() => {
       btn.disabled    = false;
       btn.textContent = 'Notify Me';
-      input.style.borderColor = '#ff4c29';
+      input.style.borderColor = '#DC2626';
     });
   }
 
-  // Reset border on type
   document.getElementById('email-input').addEventListener('input', function() {
     this.style.borderColor = '';
   });
 
-  // Allow Enter key
   document.getElementById('email-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') handleSubmit();
   });
@@ -901,7 +892,6 @@
     const submitBtn = document.getElementById('tg-submit-btn');
     const token    = input.value.trim();
 
-    // Validate: must match Telegram bot token format (digits:alphanum, 40+ chars)
     const tokenRegex = /^\d{5,}:[A-Za-z0-9_-]{30,}$/;
     if (!token) {
       input.classList.add('error');
@@ -946,23 +936,19 @@
     });
   }
 
-  // Close modal on backdrop click
   document.getElementById('tg-modal-overlay').addEventListener('click', function(e) {
     if (e.target === this) closeTelegramModal();
   });
 
-  // Close modal on Escape key
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeTelegramModal();
   });
 
-  // Clear error state while typing
   document.getElementById('tg-token-input').addEventListener('input', function() {
     this.classList.remove('error');
     document.getElementById('tg-token-error').classList.remove('show');
   });
 
-  // Allow Enter key in token field to submit
   document.getElementById('tg-token-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') submitTelegramModal();
   });

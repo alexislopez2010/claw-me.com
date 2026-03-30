@@ -227,32 +227,33 @@ function forbidden(message) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Access Denied — claw-me.com</title>
+  <title>Access Denied — Claw-Me</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       min-height: 100vh;
       display: flex; align-items: center; justify-content: center;
-      background: #0d0f14; color: #e8eaf0;
+      background: #F9F7F4; color: #111111;
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
     .card {
-      background: #13161e; border: 1px solid #252a38;
+      background: #FFFFFF; border: 1px solid #E8E3DC;
       border-radius: 16px; padding: 48px 40px;
       max-width: 440px; width: 90%; text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
     }
     .icon { font-size: 3rem; margin-bottom: 16px; }
-    h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 12px; }
-    p { color: #8891a8; font-size: 0.92rem; line-height: 1.6; margin-bottom: 24px; }
+    h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 12px; color: #111111; }
+    p { color: #6B6560; font-size: 0.92rem; line-height: 1.6; margin-bottom: 24px; }
     a {
       display: inline-block;
-      background: #ff4c29; color: #fff;
+      background: #DC2626; color: #fff;
       border-radius: 8px; padding: 10px 24px;
       font-size: 0.88rem; font-weight: 700;
       text-decoration: none;
       transition: background 0.2s;
     }
-    a:hover { background: #ff7a52; }
+    a:hover { background: #B91C1C; }
   </style>
 </head>
 <body>
@@ -260,7 +261,7 @@ function forbidden(message) {
     <div class="icon">🦞</div>
     <h1>Access Denied</h1>
     <p>${message}</p>
-    <a href="https://claw-me.com/login">Sign in to claw-me.com</a>
+    <a href="https://claw-me.com/login">Sign in to Claw-Me</a>
   </div>
 </body>
 </html>`;
