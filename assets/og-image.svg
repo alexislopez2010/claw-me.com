@@ -1,0 +1,28 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Claw-Me Open Graph / Social Share Image -->
+  <rect width="1200" height="630" fill="#1A1A1A"/>
+
+  <!-- Subtle radial glow -->
+  <radialGradient id="glow" cx="50%" cy="45%" r="50%">
+    <stop offset="0%" stop-color="#DC2626" stop-opacity="0.12"/>
+    <stop offset="100%" stop-color="#DC2626" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- Logo mark -->
+  <circle cx="600" cy="240" r="72" stroke="#FFFFFF" stroke-width="5" opacity="0.6"/>
+  <g transform="rotate(15, 600, 240)">
+    <path d="M568 330 L580 234 L586 138" stroke="#DC2626" stroke-width="10" stroke-linecap="round"/>
+    <path d="M589 334 L601 238 L607 142" stroke="#DC2626" stroke-width="10" stroke-linecap="round"/>
+    <path d="M610 330 L622 234 L628 138" stroke="#DC2626" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <!-- Brand name -->
+  <text x="600" y="400" font-family="'Plus Jakarta Sans', -apple-system, sans-serif" font-weight="800" font-size="64" fill="#FFFFFF" letter-spacing="-2" text-anchor="middle">claw-me</text>
+
+  <!-- Tagline -->
+  <text x="600" y="450" font-family="Inter, -apple-system, sans-serif" font-weight="400" font-size="22" fill="#999999" text-anchor="middle">Claw back your time.</text>
+
+  <!-- URL -->
+  <text x="600" y="560" font-family="'JetBrains Mono', monospace" font-weight="500" font-size="16" fill="#555555" text-anchor="middle">claw-me.com</text>
+</svg>

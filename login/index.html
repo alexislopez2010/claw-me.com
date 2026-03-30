@@ -7,7 +7,8 @@
   <meta name="description" content="Sign in to your Claw-Me AI agent instance." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -63,11 +64,8 @@
       background: rgba(7,14,27,0.7); backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border);
     }
-    .logo {
-      display: flex; align-items: center; gap: 9px;
-      font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em;
-      text-decoration: none; color: var(--text);
-    }
+    .logo { display: flex; align-items: center; text-decoration: none; }
+    .logo img { height: 32px; width: auto; display: block; }
     .logo-accent { color: var(--accent); }
     .top-link {
       font-size: 0.82rem; color: var(--muted); font-weight: 500;
@@ -97,6 +95,7 @@
     .login-logo {
       width: 72px; height: 72px;
       margin: 0 auto 24px;
+      display: block;
     }
     .login-title {
       font-size: 1.5rem; font-weight: 800;
@@ -316,7 +315,7 @@
 <!-- Top bar -->
 <div class="top-bar">
   <a href="/" class="logo">
-    🦞 claw-me<span class="logo-accent">.com</span>
+    <img src="/assets/logo-lockup-white.svg" alt="Claw-Me" />
   </a>
   <a href="mailto:hello@claw-me.com" class="top-link">hello@claw-me.com</a>
 </div>
@@ -325,7 +324,7 @@
 <main class="page">
 
   <div class="login-card">
-    <img src="/logo.svg" alt="claw-me.com" class="login-logo" />
+    <img src="/assets/app-icon-120.svg" alt="Claw-Me" class="login-logo" />
 
     <!-- ═══ STEP 1: Instance + Email/Password (Primary) ═══ -->
     <div class="step active" id="step-login">

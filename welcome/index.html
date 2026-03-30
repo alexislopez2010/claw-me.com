@@ -6,7 +6,8 @@
   <title>You're in — Claw-Me</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -60,18 +61,16 @@
       background: rgba(13,15,20,0.7); backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border);
     }
-    .logo {
-      display: flex; align-items: center; gap: 9px;
-      font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em;
-      text-decoration: none; color: var(--text);
-    }
+    .logo { display: flex; align-items: center; text-decoration: none; }
+    .logo img { height: 32px; width: auto; display: block; }
     .logo-accent { color: var(--accent); }
     .success-icon {
-      width: 80px; height: 80px; border-radius: 50%;
-      background: rgba(34,197,94,0.15); border: 2px solid rgba(34,197,94,0.4);
+      width: 96px; height: 96px; border-radius: 50%;
+      background: rgba(14,165,233,0.12); border: 2px solid rgba(14,165,233,0.35);
       display: flex; align-items: center; justify-content: center;
-      font-size: 2.5rem; margin-bottom: 28px;
+      margin-bottom: 28px;
       animation: pop 0.4s ease-out;
+      padding: 16px;
     }
     @keyframes pop {
       0% { transform: scale(0.5); opacity: 0; }
@@ -135,11 +134,11 @@
 <body>
 
 <nav class="top-bar">
-  <a href="/" class="logo">🦞 <span>claw-me</span> <span class="logo-accent">.com</span></a>
+  <a href="/" class="logo"><img src="/assets/logo-lockup-white.svg" alt="Claw-Me" /></a>
 </nav>
 
 <main class="page">
-  <div class="success-icon">🦞</div>
+  <div class="success-icon"><img src="/assets/logo-mark-white.svg" alt="Claw-Me" width="64" height="64" /></div>
   <h1>You're in.</h1>
   <p class="subtitle">
     Payment confirmed. Your dedicated AI agent is being set up right now —

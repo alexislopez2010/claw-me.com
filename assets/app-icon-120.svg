@@ -1,0 +1,10 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Claw-Me App Icon — 120x120 -->
+  <rect width="120" height="120" rx="32" fill="#1A1A1A"/>
+  <circle cx="60" cy="60" r="32" stroke="#FFFFFF" stroke-width="2.5" opacity="0.6"/>
+  <g transform="rotate(15, 60, 60)">
+    <path d="M45 82 L51 38" stroke="#DC2626" stroke-width="4" stroke-linecap="round"/>
+    <path d="M56 84 L62 40" stroke="#DC2626" stroke-width="4" stroke-linecap="round"/>
+    <path d="M67 82 L73 38" stroke="#DC2626" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

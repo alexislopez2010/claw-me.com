@@ -1,0 +1,9 @@
+<svg width="88" height="88" viewBox="0 0 88 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Claw-Me Logo Mark — Monochrome Black -->
+  <circle cx="44" cy="44" r="27" stroke="#1A1A1A" stroke-width="2.5" opacity="0.6"/>
+  <g transform="rotate(15, 44, 44)">
+    <path d="M32 62 L38 26" stroke="#1A1A1A" stroke-width="4" stroke-linecap="round"/>
+    <path d="M41 64 L47 28" stroke="#1A1A1A" stroke-width="4" stroke-linecap="round"/>
+    <path d="M50 62 L56 26" stroke="#1A1A1A" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>
