@@ -236,6 +236,10 @@
     .alert-error {
       background: var(--error-bg); border: 1px solid rgba(220,38,38,0.2); color: var(--error);
     }
+    .alert-info {
+      background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8;
+      display: flex; align-items: center;
+    }
     .alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
     .alert strong { display: block; margin-bottom: 2px; }
     .alert-hidden { display: none; }
@@ -350,56 +354,78 @@
 
   <!-- ─── STEP 1: Telegram ─── -->
   <div class="card step-panel active" id="step-1">
-    <div class="card-title">Connect your Telegram bot</div>
-    <div class="card-subtitle">
-      Your Claw needs a Telegram bot to talk to you. Create one with
-      <a href="https://t.me/BotFather" target="_blank" rel="noopener" style="color:var(--accent)">@BotFather</a>
-      and paste the token below.
+
+    <!-- Phase A: token entry (default) -->
+    <div id="phase-token">
+      <div class="card-title">Connect your Telegram bot</div>
+      <div class="card-subtitle">
+        Your Claw communicates through a Telegram bot you own. Create one with
+        <a href="https://t.me/BotFather" target="_blank" rel="noopener" style="color:var(--accent)">@BotFather</a>
+        and paste the token below.
+      </div>
+
+      <div class="step-row">
+        <div class="step-num">1</div>
+        <div class="step-txt"><strong>Create your bot</strong> — open Telegram, message <a href="https://t.me/BotFather" target="_blank" style="color:var(--accent)">@BotFather</a>, send <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:0.82em">/newbot</code> and follow the prompts.</div>
+      </div>
+      <div class="step-row" style="margin-bottom:20px">
+        <div class="step-num">2</div>
+        <div class="step-txt"><strong>Copy the token</strong> BotFather sends you (looks like <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:0.82em">1234567890:ABCdef...</code>) and paste it below.</div>
+      </div>
+
+      <div class="field">
+        <label for="bot-token">Bot Token</label>
+        <input type="text" id="bot-token" placeholder="1234567890:ABCdefGHI..." autocomplete="off" spellcheck="false" />
+      </div>
+
+      <div id="tg-alert" class="alert alert-hidden"></div>
+
+      <button class="btn btn-primary" id="btn-connect" onclick="connectBot()">
+        Connect Bot →
+      </button>
     </div>
 
-    <div class="step-row">
-      <div class="step-num">1</div>
-      <div class="step-txt"><strong>Create your bot</strong> — open Telegram, message <a href="https://t.me/BotFather" target="_blank" style="color:var(--accent)">@BotFather</a>, send <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:0.82em">/newbot</code> and follow the prompts.</div>
-    </div>
-    <div class="step-row">
-      <div class="step-num">2</div>
-      <div class="step-txt"><strong>Copy the token</strong> — BotFather will give you a token like <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:0.82em">1234567890:ABCdef...</code></div>
-    </div>
-    <div class="step-row" style="margin-bottom:20px">
-      <div class="step-num">3</div>
-      <div class="step-txt"><strong>Paste it below</strong> and click Verify — we'll confirm the bot is live.</div>
-    </div>
+    <!-- Phase B: send-message prompt (shown after token validated) -->
+    <div id="phase-send" style="display:none">
+      <div class="card-title" style="color:var(--success)">✓ Bot connected</div>
+      <div class="card-subtitle" id="phase-send-subtitle"></div>
 
-    <div class="field">
-      <label for="bot-token">Bot Token</label>
-      <input type="text" id="bot-token" placeholder="1234567890:ABCdefGHI..." autocomplete="off" spellcheck="false" />
-      <div class="input-hint">Starts with your bot's numeric ID, followed by a colon.</div>
-    </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:20px 0;text-align:center">
+        <div style="font-size:0.85rem;color:var(--muted);margin-bottom:14px">
+          Open Telegram and send any message to your bot — we'll use it to identify you.
+        </div>
+        <a id="bot-link" href="#" target="_blank" rel="noopener"
+           style="display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border-radius:8px;padding:10px 20px;text-decoration:none;font-weight:700;font-size:0.9rem">
+          Open bot in Telegram →
+        </a>
+      </div>
 
-    <div id="tg-alert" class="alert alert-hidden"></div>
+      <div id="discover-status" class="alert alert-hidden"></div>
 
-    <!-- Verified state (hidden until confirmed) -->
-    <div id="verified-box" class="verified-row hidden">
-      <div class="verified-icon">✅</div>
-      <div class="verified-text">
-        <strong id="verified-bot-name">Bot connected</strong>
-        <span id="verified-tg-id">Your Telegram ID has been captured.</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <button class="btn btn-secondary" style="width:auto;font-size:0.85rem" onclick="resetToToken()">← Change token</button>
+        <button class="btn btn-secondary" style="width:auto;font-size:0.85rem" id="btn-retry-discover" onclick="startDiscover()" style="display:none">Retry</button>
       </div>
     </div>
 
-    <!-- Awaiting message notice (hidden until bot validates but no message yet) -->
-    <div id="awaiting-box" class="alert alert-hidden"></div>
+    <!-- Phase C: verified (shown after user ID captured) -->
+    <div id="phase-verified" style="display:none">
+      <div class="card-title" style="color:var(--success)">✓ Identity confirmed</div>
+      <div class="card-subtitle">Your Telegram bot is connected and your account is linked.</div>
 
-    <button class="btn btn-primary" id="btn-verify" onclick="verifyTelegram()">
-      Verify Telegram Bot
-    </button>
+      <div class="verified-row" style="margin:20px 0">
+        <div class="verified-icon">✅</div>
+        <div class="verified-text">
+          <strong id="verified-bot-name"></strong>
+          <span id="verified-tg-id"></span>
+        </div>
+      </div>
 
-    <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center">
-      <div></div>
-      <button class="btn btn-secondary hidden" id="btn-next-1" onclick="goToStep(2)">
-        Continue →
-      </button>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn btn-primary" onclick="goToStep(2)">Continue →</button>
+      </div>
     </div>
+
   </div>
 
   <!-- ─── STEP 2: Your Details ─── -->
@@ -550,76 +576,126 @@
     document.getElementById(id).className = 'alert alert-hidden';
   }
 
-  // ── Step 1: Telegram verification ────────────────────────────────
-  let verifying = false;
-  let awaitingRetry = false;
+  // ── Step 1: Telegram — two-phase discovery ──────────────────────
+  let connecting  = false;
+  let discovering = false;
 
-  async function verifyTelegram() {
-    if (verifying) return;
+  function showPhase(name) {
+    ['phase-token', 'phase-send', 'phase-verified'].forEach(id => {
+      document.getElementById(id).style.display = (id === 'phase-' + name) ? '' : 'none';
+    });
+  }
+
+  function resetToToken() {
+    connecting  = false;
+    discovering = false;
+    state.botToken = '';
+    state.botName  = '';
+    state.telegramUserId = '';
+    hideAlert('tg-alert');
+    document.getElementById('btn-connect').disabled = false;
+    document.getElementById('btn-connect').innerHTML = 'Connect Bot →';
+    showPhase('token');
+  }
+
+  // Phase 1: validate token quickly and drain stale messages
+  async function connectBot() {
+    if (connecting) return;
     const token = document.getElementById('bot-token').value.trim();
     if (!token || !token.includes(':')) {
-      showAlert('tg-alert', 'error', 'Please paste a valid bot token (format: <code>1234567890:ABCdef...</code>).');
+      showAlert('tg-alert', 'error', 'Please paste a valid bot token — it looks like <code>1234567890:ABCdef...</code>');
       return;
     }
 
-    verifying = true;
+    connecting = true;
     hideAlert('tg-alert');
-    document.getElementById('awaiting-box').className = 'alert alert-hidden';
-    document.getElementById('verified-box').classList.add('hidden');
-    document.getElementById('btn-next-1').classList.add('hidden');
-
-    const btn = document.getElementById('btn-verify');
+    const btn = document.getElementById('btn-connect');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Verifying…';
+    btn.innerHTML = '<span class="spinner"></span> Connecting…';
 
     try {
       const res = await fetch(API + '/billing/discover-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegramBotToken: token })
+        body: JSON.stringify({ telegramBotToken: token, action: 'validate' })
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        showAlert('tg-alert', 'error', data.error || 'Could not validate the bot token. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = 'Connect Bot →';
+        connecting = false;
+        return;
+      }
+
+      // Token is valid — stale messages have been drained
+      state.botToken = token;
+      state.botName  = data.botName;
+
+      // Set up the send-message phase
+      document.getElementById('phase-send-subtitle').innerHTML =
+        `<strong>@${data.botName}</strong> is ready. Now open Telegram and send any message to your bot — we'll capture your Telegram ID automatically.`;
+      document.getElementById('bot-link').href = `https://t.me/${data.botName}`;
+      document.getElementById('bot-link').textContent = `Open @${data.botName} in Telegram →`;
+      hideAlert('discover-status');
+      showPhase('send');
+
+      // Immediately start listening for the first message
+      startDiscover();
+
+    } catch (err) {
+      showAlert('tg-alert', 'error', 'Network error — please check your connection and try again.');
+      btn.disabled = false;
+      btn.innerHTML = 'Connect Bot →';
+      connecting = false;
+    }
+  }
+
+  // Phase 2: long-poll for first message from user
+  async function startDiscover() {
+    if (discovering) return;
+    discovering = true;
+    document.getElementById('btn-retry-discover').style.display = 'none';
+    showAlert('discover-status', 'info',
+      '<span class="spinner" style="margin-right:8px"></span> Listening for your Telegram message…'
+    );
+
+    try {
+      const res = await fetch(API + '/billing/discover-telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegramBotToken: state.botToken, action: 'discover' })
       });
       const data = await res.json();
 
       if (!res.ok) {
-        showAlert('tg-alert', 'error', data.error || 'Could not reach the API. Please try again.');
+        showAlert('discover-status', 'error', data.error || 'Something went wrong. Please retry.');
+        document.getElementById('btn-retry-discover').style.display = '';
+        discovering = false;
         return;
       }
 
-      if (data.success) {
-        // Got the Telegram user ID
-        state.botToken       = token;
-        state.botName        = data.botName;
+      if (data.success && data.telegramUserId) {
+        // Got the user ID — move to verified phase
         state.telegramUserId = data.telegramUserId;
-
-        document.getElementById('verified-bot-name').textContent = '@' + data.botName + ' connected';
+        document.getElementById('verified-bot-name').textContent = '@' + state.botName + ' connected';
         document.getElementById('verified-tg-id').textContent    = 'Your Telegram ID: ' + data.telegramUserId;
-        document.getElementById('verified-box').classList.remove('hidden');
-        document.getElementById('btn-next-1').classList.remove('hidden');
-        btn.innerHTML = '✓ Verified';
-        btn.style.background = 'var(--success)';
-        awaitingRetry = false;
+        showPhase('verified');
+        connecting  = false;
+        discovering = false;
       } else {
-        // Bot is valid but no message received yet
-        state.botToken = token;
-        state.botName  = data.botName || '';
-
-        const botLink = data.botName
-          ? `<a href="https://t.me/${data.botName}" target="_blank" style="color:inherit;font-weight:700">@${data.botName}</a>`
-          : 'your bot';
-
-        showAlert('awaiting-box', 'error',
-          `<strong>One more step:</strong> Open Telegram and send any message to ${botLink}, then click <strong>Verify Again</strong> below.`
+        // Timed out — prompt retry
+        showAlert('discover-status', 'error',
+          "Didn't catch a message in time. Send any message to your bot in Telegram, then tap Retry."
         );
-        btn.innerHTML = 'Verify Again';
-        btn.style.background = '';
-        awaitingRetry = true;
+        document.getElementById('btn-retry-discover').style.display = '';
+        discovering = false;
       }
     } catch (err) {
-      showAlert('tg-alert', 'error', 'Network error — please check your connection and try again.');
-      btn.innerHTML = 'Try Again';
-    } finally {
-      verifying = false;
-      btn.disabled = false;
+      showAlert('discover-status', 'error', 'Network error — please retry.');
+      document.getElementById('btn-retry-discover').style.display = '';
+      discovering = false;
     }
   }
 
