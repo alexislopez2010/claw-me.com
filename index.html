@@ -391,130 +391,6 @@
       .pricing-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }
     }
 
-    /* ── Telegram setup modal ── */
-    .modal-overlay {
-      position: fixed; inset: 0; z-index: 100;
-      background: rgba(0,0,0,0.45);
-      backdrop-filter: blur(4px);
-      display: flex; align-items: center; justify-content: center;
-      padding: 24px;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.2s;
-    }
-    .modal-overlay.open {
-      opacity: 1; pointer-events: all;
-    }
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 36px 32px 32px;
-      max-width: 520px; width: 100%;
-      position: relative;
-      transform: translateY(24px);
-      transition: transform 0.25s cubic-bezier(.22,.68,0,1.2);
-      text-align: center;
-      box-shadow: 0 16px 48px rgba(0,0,0,0.12);
-    }
-    .modal-overlay.open .modal { transform: translateY(0); }
-    .modal-close {
-      position: absolute; top: 14px; right: 16px;
-      background: none; border: none; cursor: pointer;
-      color: var(--muted); font-size: 1.5rem; line-height: 1;
-      transition: color 0.15s; padding: 4px;
-    }
-    .modal-close:hover { color: var(--text); }
-    .modal-icon { font-size: 2.2rem; margin-bottom: 12px; }
-    .modal h3 {
-      font-size: 1.3rem; font-weight: 800; letter-spacing: -0.025em;
-      margin-bottom: 8px; color: var(--text);
-    }
-    .modal-sub {
-      font-size: 0.88rem; color: var(--muted);
-      line-height: 1.65; margin-bottom: 22px;
-    }
-    .modal-steps {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px 18px 16px 22px;
-      margin-bottom: 22px;
-      text-align: left;
-    }
-    .modal-steps ol {
-      padding-left: 18px;
-      display: flex; flex-direction: column; gap: 9px;
-    }
-    .modal-steps li {
-      font-size: 0.87rem; color: var(--muted); line-height: 1.5;
-    }
-    .modal-steps li strong { color: var(--text); }
-    .modal-steps code {
-      background: rgba(0,0,0,0.06);
-      border-radius: 4px; padding: 1px 5px;
-      font-size: 0.8rem; font-family: 'Courier New', monospace;
-      color: var(--accent2);
-    }
-    .modal-token-label {
-      display: block; font-size: 0.75rem; font-weight: 700;
-      color: var(--muted); margin-bottom: 8px; letter-spacing: 0.08em;
-      text-align: left; text-transform: uppercase;
-    }
-    .modal-token-input {
-      width: 100%; background: var(--bg);
-      border: 1px solid var(--border); border-radius: 10px;
-      padding: 12px 14px; font-size: 0.87rem;
-      color: var(--text); font-family: 'Courier New', monospace;
-      transition: border-color 0.2s;
-      margin-bottom: 6px;
-    }
-    .modal-token-input:focus { outline: none; border-color: var(--accent); }
-    .modal-token-input::placeholder { color: #C0B9B2; font-family: 'Courier New', monospace; }
-    .modal-token-input.error { border-color: var(--accent); }
-    .modal-error {
-      font-size: 0.78rem; color: var(--accent);
-      margin-bottom: 12px; text-align: left;
-      display: none; min-height: 18px;
-    }
-    .modal-error.show { display: block; }
-    .btn-modal-submit {
-      width: 100%;
-      display: inline-flex; align-items: center; justify-content: center;
-      gap: 8px;
-      background: var(--accent);
-      color: #fff;
-      border: none; border-radius: 10px;
-      padding: 14px 24px;
-      font-size: 0.95rem; font-weight: 700;
-      cursor: pointer; font-family: inherit; letter-spacing: -0.01em;
-      transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
-    }
-    .btn-modal-submit:hover:not(:disabled) {
-      background: var(--accent2);
-      box-shadow: 0 6px 22px rgba(220,38,38,0.35);
-    }
-    .btn-modal-submit:disabled { opacity: 0.55; cursor: not-allowed; }
-    .modal-divider {
-      height: 1px; background: var(--border); margin: 20px 0;
-    }
-    .modal-botfather-link {
-      font-size: 0.8rem; color: var(--muted);
-    }
-    .modal-botfather-link a {
-      color: var(--accent); text-decoration: none; font-weight: 600;
-    }
-    .modal-botfather-link a:hover { text-decoration: underline; }
-    .modal-get-telegram {
-      font-size: 0.82rem; color: var(--muted);
-      margin: -14px 0 18px; line-height: 1.6;
-    }
-    .modal-get-telegram a {
-      color: var(--accent); text-decoration: none; font-weight: 600;
-    }
-    .modal-get-telegram a:hover { text-decoration: underline; }
-    .modal-example {
-      font-size: 0.82rem; color: var(--muted); font-style: normal;
-    }
   </style>
 </head>
 <body>
@@ -699,43 +575,6 @@
 
 </main>
 
-<!-- Telegram setup modal -->
-<div class="modal-overlay" id="tg-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tg-modal-title">
-  <div class="modal">
-    <button class="modal-close" onclick="closeTelegramModal()" aria-label="Close">×</button>
-    <div class="modal-icon">🤖</div>
-    <h3 id="tg-modal-title">Connect your Telegram bot</h3>
-    <p class="modal-sub">You will need a Telegram account and a Telegram bot to communicate with your AI assistant. Create yours in 2 minutes, then paste the token below — we'll wire it up automatically when your instance launches.</p>
-    <p class="modal-get-telegram">Don't have Telegram yet? Download it free:
-      <a href="https://apps.apple.com/app/telegram-messenger/id686449807" target="_blank" rel="noopener">iPhone</a> ·
-      <a href="https://play.google.com/store/apps/details?id=org.telegram.messenger" target="_blank" rel="noopener">Android</a> ·
-      <a href="https://desktop.telegram.org/" target="_blank" rel="noopener">Desktop</a>
-    </p>
-    <div class="modal-steps">
-      <ol>
-        <li>Open Telegram and search for <strong>@BotFather</strong></li>
-        <li>Send <code>/newbot</code> — pick a display name, then a username ending in <code>bot</code> <span class="modal-example">(e.g. Display name: <em>Aimee</em>, Username: <em>aimee_bot</em>)</span></li>
-        <li>BotFather replies with your token, e.g. <code>7123456789:AAExxxxx…</code> — copy it and paste it in the <strong>Bot Token</strong> field below</li>
-      </ol>
-    </div>
-    <label class="modal-token-label" for="tg-token-input">Bot Token</label>
-    <input
-      class="modal-token-input"
-      id="tg-token-input"
-      type="text"
-      placeholder="7123456789:AAExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-      autocomplete="off"
-      spellcheck="false"
-    />
-    <p class="modal-error" id="tg-token-error">Please paste your bot token before continuing.</p>
-    <button class="btn-modal-submit" id="tg-submit-btn" onclick="submitTelegramModal()">
-      Continue to Payment →
-    </button>
-    <div class="modal-divider"></div>
-    <p class="modal-botfather-link">Open BotFather directly: <a href="https://t.me/BotFather" target="_blank" rel="noopener">t.me/BotFather</a></p>
-  </div>
-</div>
-
 <!-- Footer -->
 <div class="page-footer">
   © 2026 claw-me.com &nbsp;·&nbsp;
@@ -855,9 +694,6 @@
     }
   }
 
-  // ── n8n base URL for Stripe Checkout workflow ──
-  const N8N_CHECKOUT_URL = 'https://ielaboratories.app.n8n.cloud/webhook/stripe-checkout';
-
   // ── Pricing plan selection — routes to /start/ onboarding ──
   function selectPlan(plan) {
     if (plan === 'business') {
@@ -866,92 +702,6 @@
     }
     window.location.href = '/start/?plan=' + plan;
   }
-
-  // ── Telegram setup modal ──
-  let _pendingPlan = null;
-
-  function showTelegramModal(plan) {
-    _pendingPlan = plan;
-    const input = document.getElementById('tg-token-input');
-    input.value = '';
-    input.classList.remove('error');
-    document.getElementById('tg-token-error').classList.remove('show');
-    document.getElementById('tg-submit-btn').textContent = 'Continue to Payment →';
-    document.getElementById('tg-submit-btn').disabled = false;
-    document.getElementById('tg-modal-overlay').classList.add('open');
-    setTimeout(() => input.focus(), 260);
-  }
-
-  function closeTelegramModal() {
-    document.getElementById('tg-modal-overlay').classList.remove('open');
-  }
-
-  function submitTelegramModal() {
-    const input    = document.getElementById('tg-token-input');
-    const errorEl  = document.getElementById('tg-token-error');
-    const submitBtn = document.getElementById('tg-submit-btn');
-    const token    = input.value.trim();
-
-    const tokenRegex = /^\d{5,}:[A-Za-z0-9_-]{30,}$/;
-    if (!token) {
-      input.classList.add('error');
-      errorEl.textContent = 'Please paste your bot token before continuing.';
-      errorEl.classList.add('show');
-      input.focus();
-      return;
-    }
-    if (!tokenRegex.test(token)) {
-      input.classList.add('error');
-      errorEl.textContent = 'That doesn\'t look like a valid bot token. It should look like: 7123456789:AAExxxxx…';
-      errorEl.classList.add('show');
-      input.focus();
-      return;
-    }
-
-    input.classList.remove('error');
-    errorEl.classList.remove('show');
-    submitBtn.textContent = 'Redirecting…';
-    submitBtn.disabled = true;
-
-    const billing = isAnnual ? 'annual' : 'monthly';
-
-    fetch(N8N_CHECKOUT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: _pendingPlan, billing, telegramBotToken: token })
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error(data.error || 'No checkout URL returned');
-      }
-    })
-    .catch(err => {
-      console.error('Checkout error:', err);
-      submitBtn.textContent = 'Continue to Payment →';
-      submitBtn.disabled = false;
-      alert('Something went wrong starting checkout. Please try again.');
-    });
-  }
-
-  document.getElementById('tg-modal-overlay').addEventListener('click', function(e) {
-    if (e.target === this) closeTelegramModal();
-  });
-
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeTelegramModal();
-  });
-
-  document.getElementById('tg-token-input').addEventListener('input', function() {
-    this.classList.remove('error');
-    document.getElementById('tg-token-error').classList.remove('show');
-  });
-
-  document.getElementById('tg-token-input').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') submitTelegramModal();
-  });
 </script>
 </body>
 </html>
