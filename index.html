@@ -858,13 +858,13 @@
   // ── n8n base URL for Stripe Checkout workflow ──
   const N8N_CHECKOUT_URL = 'https://ielaboratories.app.n8n.cloud/webhook/stripe-checkout';
 
-  // ── Pricing plan selection — opens Telegram setup modal first ──
+  // ── Pricing plan selection — routes to /start/ onboarding ──
   function selectPlan(plan) {
     if (plan === 'business') {
       window.location.href = 'mailto:alexis.hiram@gmail.com?subject=Claw-Me Business Plan Inquiry';
       return;
     }
-    showTelegramModal(plan);
+    window.location.href = '/start/?plan=' + plan;
   }
 
   // ── Telegram setup modal ──
