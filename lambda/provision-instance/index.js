@@ -126,11 +126,11 @@ exports.handler = async (event) => {
 
   // ── API Gateway: manual actions ───────────────────────────────
   const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body || event;
-  const { action, tenantId, plan, telegramBotToken } = body;
+  const { action, tenantId, plan, telegramBotToken, telegramDmPolicy, telegramAllowFrom } = body;
 
   try {
     switch (action) {
-      case 'provision':   return await provision(tenantId, plan, body.countryCode, telegramBotToken);
+      case 'provision':   return await provision(tenantId, plan, body.countryCode, telegramBotToken, telegramDmPolicy, telegramAllowFrom);
       case 'deprovision': return await deprovision(tenantId);
       case 'status':      return await getStatus(tenantId);
       default:
@@ -144,9 +144,9 @@ exports.handler = async (event) => {
 };
 
 // ── PROVISION ────────────────────────────────────────────────
-async function provision(tenantId, plan = 'starter', countryCode = null, telegramBotToken = '') {
+async function provision(tenantId, plan = 'starter', countryCode = null, telegramBotToken = '', telegramDmPolicy = 'pairing', telegramAllowFrom = '') {
   const { region, name: regionName, cluster } = resolveRegion(countryCode);
-  console.log(`Provisioning tenant: ${tenantId} (${plan}) → ${region}${telegramBotToken ? ' [telegram token provided]' : ''}`);
+  console.log(`Provisioning tenant: ${tenantId} (${plan}) → ${region}${telegramBotToken ? ' [telegram token provided]' : ''}${telegramAllowFrom ? ` [allowFrom: ${telegramAllowFrom}]` : ''}`);
 
   const ecs       = getEcsClient(region);
   const resources = PLAN_RESOURCES[plan] || PLAN_RESOURCES.starter;
@@ -367,7 +367,9 @@ async function provision(tenantId, plan = 'starter', countryCode = null, telegra
           { name: 'OPENAI_API_KEY',      value: process.env.OPENAI_API_KEY || '' },
           { name: 'LITELLM_VIRTUAL_KEY', value: litellmVirtualKey || '' },
           { name: 'ANTHROPIC_API_KEY',   value: litellmVirtualKey ? '' : (process.env.ANTHROPIC_API_KEY || '') },
-          { name: 'TELEGRAM_BOT_TOKEN',  value: telegramBotToken || '' },
+          { name: 'TELEGRAM_BOT_TOKEN',  value: telegramBotToken  || '' },
+          { name: 'TELEGRAM_DM_POLICY',  value: telegramDmPolicy  || 'pairing' },
+          { name: 'TELEGRAM_ALLOW_FROM', value: telegramAllowFrom || '' },
         ],
       }],
     },

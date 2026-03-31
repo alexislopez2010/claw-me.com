@@ -216,6 +216,10 @@ import json, os
 virtual_key   = os.environ.get('LITELLM_VIRTUAL_KEY', '')
 base_url      = os.environ.get('OPENAI_API_BASE', '').rstrip('/') + '/v1'
 gateway_token = os.environ.get('OPENCLAW_GATEWAY_TOKEN', '')
+tg_token      = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+tg_dm_policy  = os.environ.get('TELEGRAM_DM_POLICY', 'pairing')
+tg_allow_raw  = os.environ.get('TELEGRAM_ALLOW_FROM', '')
+tg_allow_from = [x.strip() for x in tg_allow_raw.split(',') if x.strip()]
 models = [
   {'id': 'gpt-4.1-mini', 'name': 'GPT-4.1 Mini', 'contextWindow': 128000, 'maxTokens': 16384},
   {'id': 'gpt-4.1',      'name': 'GPT-4.1',       'contextWindow': 1000000, 'maxTokens': 32768},
@@ -240,7 +244,7 @@ config = {
     }
   },
   'channels': {
-    'telegram': {'enabled': True, 'botToken': '', 'dmPolicy': 'pairing', 'groupPolicy': 'open'},
+    'telegram': {**{'enabled': True, 'botToken': tg_token, 'dmPolicy': tg_dm_policy, 'groupPolicy': 'open'}, **({'allowFrom': tg_allow_from} if tg_allow_from else {})},
     'whatsapp': {'enabled': True, 'dmPolicy': 'pairing', 'groupPolicy': 'open'},
     'discord':  {'enabled': True, 'token': '', 'dmPolicy': 'pairing', 'groupPolicy': 'open'},
     'slack':    {'enabled': True, 'mode': 'socket', 'appToken': '', 'botToken': '', 'dmPolicy': 'pairing'}
@@ -258,6 +262,10 @@ import json, os
 openai_key    = os.environ.get('OPENAI_API_KEY', '')
 anthropic_key = os.environ.get('ANTHROPIC_API_KEY', '')
 gateway_token = os.environ.get('OPENCLAW_GATEWAY_TOKEN', '')
+tg_token      = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+tg_dm_policy  = os.environ.get('TELEGRAM_DM_POLICY', 'pairing')
+tg_allow_raw  = os.environ.get('TELEGRAM_ALLOW_FROM', '')
+tg_allow_from = [x.strip() for x in tg_allow_raw.split(',') if x.strip()]
 providers = {}
 if openai_key:
   providers['openai'] = {
@@ -289,7 +297,7 @@ config = {
     }
   },
   'channels': {
-    'telegram': {'enabled': True, 'botToken': '', 'dmPolicy': 'pairing', 'groupPolicy': 'open'},
+    'telegram': {**{'enabled': True, 'botToken': tg_token, 'dmPolicy': tg_dm_policy, 'groupPolicy': 'open'}, **({'allowFrom': tg_allow_from} if tg_allow_from else {})},
     'whatsapp': {'enabled': True, 'dmPolicy': 'pairing', 'groupPolicy': 'open'},
     'discord':  {'enabled': True, 'token': '', 'dmPolicy': 'pairing', 'groupPolicy': 'open'},
     'slack':    {'enabled': True, 'mode': 'socket', 'appToken': '', 'botToken': '', 'dmPolicy': 'pairing'}
