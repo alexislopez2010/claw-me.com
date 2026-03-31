@@ -576,7 +576,7 @@
       const res = await fetch(API + '/billing/discover-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botToken: token })
+        body: JSON.stringify({ telegramBotToken: token })
       });
       const data = await res.json();
 
