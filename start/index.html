@@ -387,25 +387,30 @@
 
     <!-- Phase B: send-message prompt (shown after token validated) -->
     <div id="phase-send" style="display:none">
-      <div class="card-title" style="color:var(--success)">✓ Bot connected</div>
-      <div class="card-subtitle" id="phase-send-subtitle"></div>
+      <div class="card-title" style="color:var(--success)">✓ Bot verified</div>
 
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:20px 0;text-align:center">
-        <div style="font-size:0.85rem;color:var(--muted);margin-bottom:14px">
-          Open Telegram and send any message to your bot — we'll use it to identify you.
+      <!-- Step instruction — prominent -->
+      <div style="background:#EFF6FF;border:1.5px solid #93C5FD;border-radius:12px;padding:20px 24px;margin:20px 0">
+        <div style="font-size:1rem;font-weight:700;color:#1D4ED8;margin-bottom:6px">
+          Now send a message to your bot in Telegram
+        </div>
+        <div style="font-size:0.875rem;color:#1E40AF;margin-bottom:16px">
+          We need one message from you so we can lock the bot to your Telegram account. Open your bot and send anything — "hello" works fine.
         </div>
         <a id="bot-link" href="#" target="_blank" rel="noopener"
-           style="display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border-radius:8px;padding:10px 20px;text-decoration:none;font-weight:700;font-size:0.9rem">
-          Open bot in Telegram →
+           style="display:inline-flex;align-items:center;gap:8px;background:#1D4ED8;color:#fff;border-radius:8px;padding:12px 22px;text-decoration:none;font-weight:700;font-size:0.9rem">
+          Open <span id="bot-link-name">your bot</span> in Telegram →
         </a>
       </div>
 
+      <!-- "I've sent it" button — triggers discovery -->
+      <button class="btn btn-primary" id="btn-sent" onclick="startDiscover()" style="width:100%;margin-bottom:12px">
+        I've sent a message — find my ID →
+      </button>
+
       <div id="discover-status" class="alert alert-hidden"></div>
 
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-        <button class="btn btn-secondary" style="width:auto;font-size:0.85rem" onclick="resetToToken()">← Change token</button>
-        <button class="btn btn-secondary" style="width:auto;font-size:0.85rem" id="btn-retry-discover" onclick="startDiscover()" style="display:none">Retry</button>
-      </div>
+      <button class="btn btn-secondary" style="width:auto;font-size:0.85rem" onclick="resetToToken()">← Change token</button>
     </div>
 
     <!-- Phase C: verified (shown after user ID captured) -->
@@ -634,15 +639,12 @@
       state.botName  = data.botName;
 
       // Set up the send-message phase
-      document.getElementById('phase-send-subtitle').innerHTML =
-        `<strong>@${data.botName}</strong> is ready. Now open Telegram and send any message to your bot — we'll capture your Telegram ID automatically.`;
       document.getElementById('bot-link').href = `https://t.me/${data.botName}`;
-      document.getElementById('bot-link').textContent = `Open @${data.botName} in Telegram →`;
+      document.getElementById('bot-link-name').textContent = '@' + data.botName;
       hideAlert('discover-status');
+      document.getElementById('btn-sent').disabled = false;
+      document.getElementById('btn-sent').innerHTML = "I've sent a message — find my ID →";
       showPhase('send');
-
-      // Immediately start listening for the first message
-      startDiscover();
 
     } catch (err) {
       showAlert('tg-alert', 'error', 'Network error — please check your connection and try again.');
@@ -656,9 +658,11 @@
   async function startDiscover() {
     if (discovering) return;
     discovering = true;
-    document.getElementById('btn-retry-discover').style.display = 'none';
+    const sentBtn = document.getElementById('btn-sent');
+    sentBtn.disabled = true;
+    sentBtn.innerHTML = '<span class="spinner"></span> Listening for your message…';
     showAlert('discover-status', 'info',
-      '<span class="spinner" style="margin-right:8px"></span> Listening for your Telegram message…'
+      'Waiting up to 20 seconds. If nothing happens, send another message to your bot and tap the button again.'
     );
 
     try {
@@ -685,16 +689,18 @@
         connecting  = false;
         discovering = false;
       } else {
-        // Timed out — prompt retry
+        // Timed out — reset button so they can retry
         showAlert('discover-status', 'error',
-          "Didn't catch a message in time. Send any message to your bot in Telegram, then tap Retry."
+          "Didn't catch a message in time. Send another message to your bot in Telegram, then tap the button again."
         );
-        document.getElementById('btn-retry-discover').style.display = '';
+        sentBtn.disabled = false;
+        sentBtn.innerHTML = "Try again — I've sent another message →";
         discovering = false;
       }
     } catch (err) {
-      showAlert('discover-status', 'error', 'Network error — please retry.');
-      document.getElementById('btn-retry-discover').style.display = '';
+      showAlert('discover-status', 'error', 'Network error — please check your connection and try again.');
+      sentBtn.disabled = false;
+      sentBtn.innerHTML = "Try again →";
       discovering = false;
     }
   }
